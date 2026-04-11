@@ -17,6 +17,7 @@ import type {
 } from '../../types';
 import { DEFAULT_SETTINGS } from '../../types/Settings';
 import { loadClaudeSettingsSync } from '../../utils/claude-settings';
+import { getTrafficLightColor } from '../../utils/traffic-light';
 import { ThinkingEffortWidget } from '../ThinkingEffort';
 
 // Mock claude-settings to avoid filesystem reads in tests
@@ -204,6 +205,108 @@ describe('ThinkingEffortWidget', () => {
         it('defaults to medium when the latest /model output has no effort and settings are missing', () => {
             const result = render({ fileContent: makeTranscriptEntry(MODEL_WITHOUT_EFFORT) });
             expect(result).toBe('Thinking: medium');
+        });
+    });
+
+    describe('getDynamicColors', () => {
+        it('returns green for low effort', () => {
+            const widget = new ThinkingEffortWidget();
+            const context: RenderContext = {
+                data: { thinking_effort: 'low' },
+            };
+            const item: WidgetItem = { id: '1', type: 'thinking-effort' };
+
+            const result = widget.getDynamicColors?.(item, context, DEFAULT_SETTINGS);
+            expect(result).toEqual({
+                color: getTrafficLightColor('green', DEFAULT_SETTINGS.colorLevel),
+            });
+        });
+
+        it('returns amber for medium effort', () => {
+            const widget = new ThinkingEffortWidget();
+            const context: RenderContext = {
+                data: { thinking_effort: 'medium' },
+            };
+            const item: WidgetItem = { id: '1', type: 'thinking-effort' };
+
+            const result = widget.getDynamicColors?.(item, context, DEFAULT_SETTINGS);
+            expect(result).toEqual({
+                color: getTrafficLightColor('amber', DEFAULT_SETTINGS.colorLevel),
+            });
+        });
+
+        it('returns red for high effort', () => {
+            const widget = new ThinkingEffortWidget();
+            const context: RenderContext = {
+                data: { thinking_effort: 'high' },
+            };
+            const item: WidgetItem = { id: '1', type: 'thinking-effort' };
+
+            const result = widget.getDynamicColors?.(item, context, DEFAULT_SETTINGS);
+            expect(result).toEqual({
+                color: getTrafficLightColor('red', DEFAULT_SETTINGS.colorLevel),
+            });
+        });
+
+        it('returns red background + bold white for max effort (normal mode)', () => {
+            const widget = new ThinkingEffortWidget();
+            const context: RenderContext = {
+                data: { thinking_effort: 'max' },
+            };
+            const item: WidgetItem = { id: '1', type: 'thinking-effort' };
+            const settings = structuredClone(DEFAULT_SETTINGS);
+            settings.powerline.enabled = false;
+
+            const result = widget.getDynamicColors?.(item, context, settings);
+            expect(result).toEqual({
+                backgroundColor: getTrafficLightColor('red', settings.colorLevel),
+                color: 'white',
+                bold: true,
+            });
+        });
+
+        it('returns red background + bold white for max effort (powerline mode)', () => {
+            const widget = new ThinkingEffortWidget();
+            const context: RenderContext = {
+                data: { thinking_effort: 'max' },
+            };
+            const item: WidgetItem = { id: '1', type: 'thinking-effort' };
+            const settings = structuredClone(DEFAULT_SETTINGS);
+            settings.powerline.enabled = true;
+
+            const result = widget.getDynamicColors?.(item, context, settings);
+            expect(result).toEqual({
+                backgroundColor: getTrafficLightColor('red', settings.colorLevel),
+                color: 'white',
+                bold: true,
+            });
+        });
+
+        it('defaults to amber when no effort data', () => {
+            const widget = new ThinkingEffortWidget();
+            const context: RenderContext = { data: {} };
+            const item: WidgetItem = { id: '1', type: 'thinking-effort' };
+
+            const result = widget.getDynamicColors?.(item, context, DEFAULT_SETTINGS);
+            expect(result).toEqual({
+                color: getTrafficLightColor('amber', DEFAULT_SETTINGS.colorLevel),
+            });
+        });
+
+        it('returns backgroundColor and black for powerline mode (low)', () => {
+            const widget = new ThinkingEffortWidget();
+            const context: RenderContext = {
+                data: { thinking_effort: 'low' },
+            };
+            const item: WidgetItem = { id: '1', type: 'thinking-effort' };
+            const settings = structuredClone(DEFAULT_SETTINGS);
+            settings.powerline.enabled = true;
+
+            const result = widget.getDynamicColors?.(item, context, settings);
+            expect(result).toEqual({
+                backgroundColor: getTrafficLightColor('green', settings.colorLevel),
+                color: 'black',
+            });
         });
     });
 });

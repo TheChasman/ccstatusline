@@ -1,11 +1,13 @@
 import type { RenderContext } from '../types/RenderContext';
 import type { Settings } from '../types/Settings';
 import type {
+    DynamicColors,
     Widget,
     WidgetEditorDisplay,
     WidgetItem
 } from '../types/Widget';
 import { loadClaudeSettingsSync } from '../utils/claude-settings';
+import { getTrafficLightColor } from '../utils/traffic-light';
 import { getTranscriptThinkingEffort } from '../utils/jsonl';
 
 export type ThinkingEffortLevel = 'low' | 'medium' | 'high' | 'max';
@@ -59,6 +61,56 @@ export class ThinkingEffortWidget implements Widget {
 
         const effort = resolveThinkingEffort(context);
         return item.rawValue ? effort : `Thinking: ${effort}`;
+    }
+
+    getDynamicColors(
+        item: WidgetItem,
+        context: RenderContext,
+        settings: Settings
+    ): DynamicColors | null {
+        // Resolve effort level: check direct context.data first, then fall back to transcript/settings
+        let effortLevel: ThinkingEffortLevel;
+
+        if (context.data?.thinking_effort) {
+            const normalized = normalizeThinkingEffort(context.data.thinking_effort as string);
+            effortLevel = normalized ?? resolveThinkingEffort(context);
+        } else {
+            effortLevel = resolveThinkingEffort(context);
+        }
+
+        // Max gets special treatment: red background + bold white, both modes
+        if (effortLevel === 'max') {
+            return {
+                backgroundColor: getTrafficLightColor('red', settings.colorLevel),
+                color: 'white',
+                bold: true,
+            };
+        }
+
+        // Map low/medium/high to traffic-light colours
+        let trafficLightLevel: 'green' | 'amber' | 'red';
+
+        if (effortLevel === 'low') {
+            trafficLightLevel = 'green';
+        } else if (effortLevel === 'high') {
+            trafficLightLevel = 'red';
+        } else {
+            // medium (or any other unknown value defaults to medium)
+            trafficLightLevel = 'amber';
+        }
+
+        const color = getTrafficLightColor(trafficLightLevel, settings.colorLevel);
+
+        if (settings.powerline.enabled) {
+            return {
+                backgroundColor: color,
+                color: 'black',
+            };
+        }
+
+        return {
+            color,
+        };
     }
 
     supportsRawValue(): boolean { return true; }
