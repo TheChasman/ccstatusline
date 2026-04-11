@@ -6,7 +6,10 @@ import type {
     WidgetEditorDisplay,
     WidgetItem
 } from '../types/Widget';
+import { getColorLevelString } from '../types/ColorLevel';
+import { getColorAnsiCode } from '../utils/colors';
 import { getForkStatus } from '../utils/git-remote';
+import { getTrafficLightColor } from '../utils/traffic-light';
 
 import { makeModifierText } from './shared/editor-display';
 import {
@@ -44,25 +47,30 @@ export class GitIsForkWidget implements Widget {
         return null;
     }
 
-    render(item: WidgetItem, context: RenderContext, _settings: Settings): string | null {
+    render(item: WidgetItem, context: RenderContext, settings: Settings): string | null {
         const hideWhenNotFork = isMetadataFlagEnabled(item, HIDE_WHEN_NOT_FORK_KEY);
 
+        const colorLevelStr = getColorLevelString(settings.colorLevel);
+
         if (context.isPreview) {
-            return item.rawValue ? 'true' : 'isFork: true';
+            const valueColor = getTrafficLightColor('red', settings.colorLevel);
+            const valueAnsi = getColorAnsiCode(valueColor, colorLevelStr, false);
+            return item.rawValue ? `${valueAnsi}true` : `isFork: ${valueAnsi}true`;
         }
 
         const forkStatus = getForkStatus(context);
+        const isFork = forkStatus.isFork;
 
-        if (forkStatus.isFork) {
-            return item.rawValue ? 'true' : 'isFork: true';
-        }
-
-        // Not a fork
-        if (hideWhenNotFork) {
+        if (!isFork && hideWhenNotFork) {
             return null;
         }
 
-        return item.rawValue ? 'false' : 'isFork: false';
+        const trafficLevel = isFork ? 'red' : 'green';
+        const valueColor = getTrafficLightColor(trafficLevel, settings.colorLevel);
+        const valueAnsi = getColorAnsiCode(valueColor, colorLevelStr, false);
+        const valueText = isFork ? 'true' : 'false';
+
+        return item.rawValue ? `${valueAnsi}${valueText}` : `isFork: ${valueAnsi}${valueText}`;
     }
 
     getCustomKeybinds(): CustomKeybind[] {
