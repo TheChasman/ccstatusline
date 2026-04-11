@@ -188,15 +188,30 @@ function renderPowerlineStatusLine(
             const trailingPadding = omitTrailingPadding ? '' : padding;
             const paddedText = `${leadingPadding}${widgetText}${trailingPadding}`;
 
-            // Determine colors
+            // Determine colors with dynamic colour support
             let fgColor = widget.color ?? defaultColor;
             let bgColor = widget.backgroundColor;
+            let isBold = widget.bold;
 
-            // Apply theme colors if a theme is set (and not 'custom')
+            // Check for dynamic colours
+            const dynamicColors = widgetImpl?.getDynamicColors?.(widget, context, settings);
+            if (dynamicColors) {
+                if (dynamicColors.color !== undefined) {
+                    fgColor = dynamicColors.color;
+                }
+                if (dynamicColors.backgroundColor !== undefined) {
+                    bgColor = dynamicColors.backgroundColor;
+                }
+                if (dynamicColors.bold !== undefined) {
+                    isBold = dynamicColors.bold;
+                }
+            }
+
+            // Apply theme colors if a theme is set (and not 'custom'), but skip if dynamic colours are present
             // For custom commands with preserveColors, only skip foreground theme colors
             const skipFgTheme = widget.type === 'custom-command' && widget.preserveColors;
 
-            if (themeColors) {
+            if (themeColors && !dynamicColors) {
                 if (!skipFgTheme) {
                     fgColor = themeColors.fg[widgetColorIndex % themeColors.fg.length] ?? fgColor;
                 }
@@ -207,10 +222,13 @@ function renderPowerlineStatusLine(
                 if (!widget.merge) {
                     widgetColorIndex++;
                 }
+            } else if (!dynamicColors && !widget.merge) {
+                // Still need to increment color index for non-merged widgets even if no theme
+                widgetColorIndex++;
             }
 
-            // Apply override FG color if set (overrides theme)
-            if (settings.overrideForegroundColor && settings.overrideForegroundColor !== 'none') {
+            // Apply override FG color if set (overrides theme, but not dynamic colours)
+            if (settings.overrideForegroundColor && settings.overrideForegroundColor !== 'none' && !dynamicColors) {
                 fgColor = settings.overrideForegroundColor;
             }
 
