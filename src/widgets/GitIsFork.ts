@@ -2,12 +2,11 @@ import type { RenderContext } from '../types/RenderContext';
 import type { Settings } from '../types/Settings';
 import type {
     CustomKeybind,
+    DynamicColors,
     Widget,
     WidgetEditorDisplay,
     WidgetItem
 } from '../types/Widget';
-import { getColorLevelString } from '../types/ColorLevel';
-import { getColorAnsiCode } from '../utils/colors';
 import { getForkStatus } from '../utils/git-remote';
 import { getTrafficLightColor } from '../utils/traffic-light';
 
@@ -50,12 +49,8 @@ export class GitIsForkWidget implements Widget {
     render(item: WidgetItem, context: RenderContext, settings: Settings): string | null {
         const hideWhenNotFork = isMetadataFlagEnabled(item, HIDE_WHEN_NOT_FORK_KEY);
 
-        const colorLevelStr = getColorLevelString(settings.colorLevel);
-
         if (context.isPreview) {
-            const valueColor = getTrafficLightColor('red', settings.colorLevel);
-            const valueAnsi = getColorAnsiCode(valueColor, colorLevelStr, false);
-            return item.rawValue ? `${valueAnsi}true` : `isFork: ${valueAnsi}true`;
+            return item.rawValue ? 'true' : 'isFork: true';
         }
 
         const forkStatus = getForkStatus(context);
@@ -65,12 +60,36 @@ export class GitIsForkWidget implements Widget {
             return null;
         }
 
-        const trafficLevel = isFork ? 'red' : 'green';
-        const valueColor = getTrafficLightColor(trafficLevel, settings.colorLevel);
-        const valueAnsi = getColorAnsiCode(valueColor, colorLevelStr, false);
         const valueText = isFork ? 'true' : 'false';
 
-        return item.rawValue ? `${valueAnsi}${valueText}` : `isFork: ${valueAnsi}${valueText}`;
+        return item.rawValue ? valueText : `isFork: ${valueText}`;
+    }
+
+    getDynamicColors(
+        item: WidgetItem,
+        context: RenderContext,
+        settings: Settings
+    ): DynamicColors | null {
+        let isFork: boolean;
+
+        if (context.isPreview) {
+            isFork = true;
+        } else {
+            const forkStatus = getForkStatus(context);
+            isFork = forkStatus.isFork;
+        }
+
+        const trafficLevel = isFork ? 'red' : 'green';
+        const color = getTrafficLightColor(trafficLevel, settings.colorLevel);
+
+        if (settings.powerline.enabled) {
+            return {
+                backgroundColor: color,
+                color: 'black',
+            };
+        }
+
+        return { color };
     }
 
     getCustomKeybinds(): CustomKeybind[] {
