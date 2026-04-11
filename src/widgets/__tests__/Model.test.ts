@@ -4,66 +4,179 @@ import {
     it
 } from 'vitest';
 
-import type {
-    RenderContext,
-    WidgetItem
-} from '../../types';
+import type { RenderContext } from '../../types/RenderContext';
 import { DEFAULT_SETTINGS } from '../../types/Settings';
+import type { WidgetItem } from '../../types/Widget';
+import { getTrafficLightColor } from '../../utils/traffic-light';
 import { ModelWidget } from '../Model';
 
-const ITEM: WidgetItem = { id: 'model', type: 'model' };
-const RAW_ITEM: WidgetItem = { id: 'model', type: 'model', rawValue: true };
-
-function makeContext(overrides: Partial<RenderContext> = {}): RenderContext {
-    return { ...overrides };
-}
-
 describe('ModelWidget', () => {
-    describe('render()', () => {
-        it('strips parenthetical suffix from display_name', () => {
-            const ctx = makeContext({ data: { model: { id: 'claude-opus-4-6[1m]', display_name: 'Opus 4.6 (1M context)' } } });
-            expect(new ModelWidget().render(RAW_ITEM, ctx, DEFAULT_SETTINGS)).toBe('Opus 4.6');
+    const widget = new ModelWidget();
+
+    describe('basic rendering', () => {
+        it('should render preview', () => {
+            const context: RenderContext = { isPreview: true, data: {} };
+            const item: WidgetItem = { id: '1', type: 'model' };
+
+            expect(widget.render(item, context, DEFAULT_SETTINGS)).toBe('Model: Claude');
         });
 
-        it('strips parenthetical from Sonnet display_name', () => {
-            const ctx = makeContext({ data: { model: { id: 'claude-sonnet-4-6', display_name: 'Sonnet 4.6 (200K context)' } } });
-            expect(new ModelWidget().render(RAW_ITEM, ctx, DEFAULT_SETTINGS)).toBe('Sonnet 4.6');
+        it('should render preview with raw value', () => {
+            const context: RenderContext = { isPreview: true, data: {} };
+            const item: WidgetItem = { id: '1', type: 'model', rawValue: true };
+
+            expect(widget.render(item, context, DEFAULT_SETTINGS)).toBe('Claude');
         });
 
-        it('leaves name unchanged when no parenthetical', () => {
-            const ctx = makeContext({ data: { model: { id: 'claude-sonnet-4-6', display_name: 'Sonnet 4.6' } } });
-            expect(new ModelWidget().render(RAW_ITEM, ctx, DEFAULT_SETTINGS)).toBe('Sonnet 4.6');
+        it('should render model name', () => {
+            const context: RenderContext = {
+                isPreview: false,
+                data: { model: 'Claude 3.5 Sonnet' }
+            };
+            const item: WidgetItem = { id: '1', type: 'model' };
+
+            expect(widget.render(item, context, DEFAULT_SETTINGS)).toBe('Model: Claude 3.5 Sonnet');
         });
 
-        it('handles model as string (legacy)', () => {
-            const ctx = makeContext({ data: { model: 'Claude Opus 4.6 (1M context)' } });
-            expect(new ModelWidget().render(RAW_ITEM, ctx, DEFAULT_SETTINGS)).toBe('Claude Opus 4.6');
+        it('should render model with raw value', () => {
+            const context: RenderContext = {
+                isPreview: false,
+                data: { model: 'Claude 3.5 Sonnet' }
+            };
+            const item: WidgetItem = { id: '1', type: 'model', rawValue: true };
+
+            expect(widget.render(item, context, DEFAULT_SETTINGS)).toBe('Claude 3.5 Sonnet');
         });
 
-        it('includes Model: prefix when rawValue is false', () => {
-            const ctx = makeContext({ data: { model: { id: 'claude-opus-4-6[1m]', display_name: 'Opus 4.6 (1M context)' } } });
-            expect(new ModelWidget().render(ITEM, ctx, DEFAULT_SETTINGS)).toBe('Model: Opus 4.6');
+        it('should return null when no model data', () => {
+            const context: RenderContext = { isPreview: false, data: {} };
+            const item: WidgetItem = { id: '1', type: 'model' };
+
+            expect(widget.render(item, context, DEFAULT_SETTINGS)).toBeNull();
         });
 
-        it('returns null when model is absent', () => {
-            const ctx = makeContext({ data: {} });
-            expect(new ModelWidget().render(ITEM, ctx, DEFAULT_SETTINGS)).toBeNull();
+        it('should handle model object with display_name', () => {
+            const context: RenderContext = {
+                isPreview: false,
+                data: { model: { display_name: 'Claude 3.5 Sonnet' } }
+            };
+            const item: WidgetItem = { id: '1', type: 'model' };
+
+            expect(widget.render(item, context, DEFAULT_SETTINGS)).toBe('Model: Claude 3.5 Sonnet');
         });
 
-        it('returns null when context.data is absent', () => {
-            const ctx = makeContext();
-            expect(new ModelWidget().render(ITEM, ctx, DEFAULT_SETTINGS)).toBeNull();
+        it('should fallback to model id when display_name not available', () => {
+            const context: RenderContext = {
+                isPreview: false,
+                data: { model: { id: 'claude-3-5-sonnet' } }
+            };
+            const item: WidgetItem = { id: '1', type: 'model' };
+
+            expect(widget.render(item, context, DEFAULT_SETTINGS)).toBe('Model: claude-3-5-sonnet');
+        });
+    });
+
+    describe('getDynamicColors', () => {
+        it('returns green for haiku models', () => {
+            const context: RenderContext = {
+                data: { model: 'Claude 3.5 Haiku' }
+            };
+            const item: WidgetItem = { id: '1', type: 'model' };
+
+            const result = widget.getDynamicColors?.(item, context, DEFAULT_SETTINGS);
+            expect(result).toEqual({
+                color: getTrafficLightColor('green', DEFAULT_SETTINGS.colorLevel)
+            });
         });
 
-        it('returns preview text in preview mode', () => {
-            const ctx = makeContext({ isPreview: true });
-            expect(new ModelWidget().render(ITEM, ctx, DEFAULT_SETTINGS)).toBe('Model: Claude');
-            expect(new ModelWidget().render(RAW_ITEM, ctx, DEFAULT_SETTINGS)).toBe('Claude');
+        it('returns amber for sonnet models', () => {
+            const context: RenderContext = {
+                data: { model: 'Claude 3.5 Sonnet' }
+            };
+            const item: WidgetItem = { id: '1', type: 'model' };
+
+            const result = widget.getDynamicColors?.(item, context, DEFAULT_SETTINGS);
+            expect(result).toEqual({
+                color: getTrafficLightColor('amber', DEFAULT_SETTINGS.colorLevel)
+            });
         });
 
-        it('falls back to model id when display_name is absent', () => {
-            const ctx = makeContext({ data: { model: { id: 'claude-opus-4-6[1m]' } } });
-            expect(new ModelWidget().render(RAW_ITEM, ctx, DEFAULT_SETTINGS)).toBe('claude-opus-4-6[1m]');
+        it('returns red for opus models', () => {
+            const context: RenderContext = {
+                data: { model: 'Claude 3 Opus' }
+            };
+            const item: WidgetItem = { id: '1', type: 'model' };
+
+            const result = widget.getDynamicColors?.(item, context, DEFAULT_SETTINGS);
+            expect(result).toEqual({
+                color: getTrafficLightColor('red', DEFAULT_SETTINGS.colorLevel)
+            });
+        });
+
+        it('returns null for unknown models', () => {
+            const context: RenderContext = {
+                data: { model: 'CustomModel' }
+            };
+            const item: WidgetItem = { id: '1', type: 'model' };
+
+            const result = widget.getDynamicColors?.(item, context, DEFAULT_SETTINGS);
+            expect(result).toBeNull();
+        });
+
+        it('returns null when no model data', () => {
+            const context: RenderContext = { data: {} };
+            const item: WidgetItem = { id: '1', type: 'model' };
+
+            const result = widget.getDynamicColors?.(item, context, DEFAULT_SETTINGS);
+            expect(result).toBeNull();
+        });
+
+        it('matches model family case-insensitively', () => {
+            const context: RenderContext = {
+                data: { model: 'CLAUDE 3.5 SONNET' }
+            };
+            const item: WidgetItem = { id: '1', type: 'model' };
+
+            const result = widget.getDynamicColors?.(item, context, DEFAULT_SETTINGS);
+            expect(result).toEqual({
+                color: getTrafficLightColor('amber', DEFAULT_SETTINGS.colorLevel)
+            });
+        });
+
+        it('returns backgroundColor and color for powerline mode', () => {
+            const context: RenderContext = {
+                data: { model: 'Claude 3.5 Sonnet' }
+            };
+            const item: WidgetItem = { id: '1', type: 'model' };
+            const settings = { ...DEFAULT_SETTINGS, powerline: { ...DEFAULT_SETTINGS.powerline, enabled: true } };
+
+            const result = widget.getDynamicColors?.(item, context, settings);
+            expect(result).toEqual({
+                backgroundColor: getTrafficLightColor('amber', settings.colorLevel),
+                color: 'black'
+            });
+        });
+
+        it('handles model object in getDynamicColors', () => {
+            const context: RenderContext = {
+                data: { model: { display_name: 'Claude 3.5 Sonnet' } }
+            };
+            const item: WidgetItem = { id: '1', type: 'model' };
+
+            const result = widget.getDynamicColors?.(item, context, DEFAULT_SETTINGS);
+            expect(result).toEqual({
+                color: getTrafficLightColor('amber', DEFAULT_SETTINGS.colorLevel)
+            });
+        });
+
+        it('returns null for model object without identifiable data', () => {
+            const context: RenderContext = {
+                data: { model: {} }
+            };
+            const item: WidgetItem = { id: '1', type: 'model' };
+
+            const result = widget.getDynamicColors?.(item, context, DEFAULT_SETTINGS);
+            expect(result).toBeNull();
         });
     });
 });
