@@ -32,6 +32,12 @@ export interface WidgetEditorDisplay {
     modifierText?: string;
 }
 
+export interface DynamicColors {
+    color?: string;
+    backgroundColor?: string;
+    bold?: boolean;
+}
+
 export interface Widget {
     getDefaultColor(): string;
     getDescription(): string;
@@ -45,6 +51,7 @@ export interface Widget {
     supportsColors(item: WidgetItem): boolean;
     handleEditorAction?(action: string, item: WidgetItem): WidgetItem | null;
     getNumericValue?(context: RenderContext, item: WidgetItem): number | null;
+    getDynamicColors?(item: WidgetItem, context: RenderContext, settings: Settings): DynamicColors | null;
 }
 
 export interface WidgetEditorProps {
