@@ -236,7 +236,8 @@ function renderPowerlineStatusLine(
                 content: paddedText,
                 bgColor: bgColor ?? undefined,  // Make sure undefined, not empty string
                 fgColor: fgColor,
-                widget: widget
+                widget: widget,
+                isBold: isBold
             });
         }
     }
@@ -316,7 +317,7 @@ function renderPowerlineStatusLine(
 
         // Apply colors to widget content using raw ANSI codes for powerline mode
         // This avoids reset codes that interfere with separator rendering
-        const shouldBold = (settings.globalBold) || widget.widget.bold;
+        const shouldBold = (settings.globalBold) || widget.isBold;
 
         // Check if we need a separator after this widget
         const needsSeparator = i < widgetElements.length - 1 && separators.length > 0 && nextWidget && !widget.widget.merge;
