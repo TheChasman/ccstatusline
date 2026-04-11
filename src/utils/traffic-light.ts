@@ -1,4 +1,4 @@
-import { ColorLevel } from '../types/ColorLevel';
+import type { ColorLevel } from '../types/ColorLevel';
 
 export const TRAFFIC_LIGHT_COLOURS = {
   green: {
