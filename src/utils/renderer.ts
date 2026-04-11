@@ -702,9 +702,28 @@ export function renderStatusLine(
                         const widgetImpl = getWidget(prevWidget.type);
                         widgetColor = widgetImpl ? widgetImpl.getDefaultColor() : 'white';
                     }
+
+                    // Check for dynamic colours on the previous widget
+                    const widgetImpl = getWidget(prevWidget.type);
+                    const dynamicColors = widgetImpl?.getDynamicColors?.(prevWidget, context, settings);
+                    if (dynamicColors) {
+                        if (dynamicColors.color !== undefined) {
+                            widgetColor = dynamicColors.color;
+                        }
+                        if (dynamicColors.backgroundColor !== undefined) {
+                            separatorBg = dynamicColors.backgroundColor;
+                        } else {
+                            separatorBg = prevWidget.backgroundColor;
+                        }
+                        if (dynamicColors.bold !== undefined) {
+                            separatorBold = dynamicColors.bold;
+                        }
+                    } else {
+                        separatorBg = prevWidget.backgroundColor;
+                        separatorBold = prevWidget.bold;
+                    }
+
                     separatorColor = widgetColor;
-                    separatorBg = prevWidget.backgroundColor;
-                    separatorBold = prevWidget.bold;
                 }
             }
 
@@ -722,19 +741,38 @@ export function renderStatusLine(
         try {
             let widgetText: string | undefined;
             let defaultColor = 'white';
+            const widgetImpl = getWidget(widget.type);
 
             // Use pre-rendered content
             const preRendered = preRenderedWidgets[i];
             if (preRendered?.content) {
                 widgetText = preRendered.content;
                 // Get default color from widget impl for consistency
-                const widgetImpl = getWidget(widget.type);
                 if (widgetImpl) {
                     defaultColor = widgetImpl.getDefaultColor();
                 }
             }
 
             if (widgetText) {
+                // Determine colors with dynamic colour support
+                let widgetColor = widget.color ?? defaultColor;
+                let widgetBackgroundColor = widget.backgroundColor;
+                let widgetBold = widget.bold;
+
+                // Check for dynamic colours
+                const dynamicColors = widgetImpl?.getDynamicColors?.(widget, context, settings);
+                if (dynamicColors) {
+                    if (dynamicColors.color !== undefined) {
+                        widgetColor = dynamicColors.color;
+                    }
+                    if (dynamicColors.backgroundColor !== undefined) {
+                        widgetBackgroundColor = dynamicColors.backgroundColor;
+                    }
+                    if (dynamicColors.bold !== undefined) {
+                        widgetBold = dynamicColors.bold;
+                    }
+                }
+
                 // Special handling for custom-command with preserveColors
                 if (widget.type === 'custom-command' && widget.preserveColors) {
                     // Handle max width truncation for commands with ANSI codes
@@ -750,7 +788,7 @@ export function renderStatusLine(
                 } else {
                     // Normal widget rendering with colors
                     elements.push({
-                        content: applyColorsWithOverride(widgetText, widget.color ?? defaultColor, widget.backgroundColor, widget.bold),
+                        content: applyColorsWithOverride(widgetText, widgetColor, widgetBackgroundColor, widgetBold),
                         type: widget.type,
                         widget
                     });
@@ -795,7 +833,28 @@ export function renderStatusLine(
                         const widgetImpl = getWidget(prevElem.widget.type);
                         widgetColor = widgetImpl ? widgetImpl.getDefaultColor() : 'white';
                     }
-                    const coloredSep = applyColorsWithOverride(defaultSep, widgetColor, prevElem.widget.backgroundColor, prevElem.widget.bold);
+
+                    let bgColor = prevElem.widget.backgroundColor;
+                    let isBold = prevElem.widget.bold;
+
+                    // Check for dynamic colours on the previous widget
+                    if (prevElem.widget.type !== 'separator' && prevElem.widget.type !== 'flex-separator') {
+                        const widgetImpl = getWidget(prevElem.widget.type);
+                        const dynamicColors = widgetImpl?.getDynamicColors?.(prevElem.widget, context, settings);
+                        if (dynamicColors) {
+                            if (dynamicColors.color !== undefined) {
+                                widgetColor = dynamicColors.color;
+                            }
+                            if (dynamicColors.backgroundColor !== undefined) {
+                                bgColor = dynamicColors.backgroundColor;
+                            }
+                            if (dynamicColors.bold !== undefined) {
+                                isBold = dynamicColors.bold;
+                            }
+                        }
+                    }
+
+                    const coloredSep = applyColorsWithOverride(defaultSep, widgetColor, bgColor, isBold);
                     finalElements.push(coloredSep);
                 } else {
                     finalElements.push(defaultSep);
