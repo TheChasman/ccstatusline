@@ -56,11 +56,11 @@ export class ThinkingEffortWidget implements Widget {
 
     render(item: WidgetItem, context: RenderContext, settings: Settings): string | null {
         if (context.isPreview) {
-            return item.rawValue ? 'high' : 'Thinking: high';
+            return item.rawValue ? 'high' : 'Eff: high';
         }
 
         const effort = resolveThinkingEffort(context);
-        return item.rawValue ? effort : `Thinking: ${effort}`;
+        return item.rawValue ? effort : `Eff: ${effort}`;
     }
 
     getDynamicColors(

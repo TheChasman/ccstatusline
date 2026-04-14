@@ -50,7 +50,7 @@ export class GitIsForkWidget implements Widget {
         const hideWhenNotFork = isMetadataFlagEnabled(item, HIDE_WHEN_NOT_FORK_KEY);
 
         if (context.isPreview) {
-            return item.rawValue ? 'true' : 'isFork: true';
+            return item.rawValue ? 'true' : 'Frk: true';
         }
 
         const forkStatus = getForkStatus(context);
@@ -62,7 +62,7 @@ export class GitIsForkWidget implements Widget {
 
         const valueText = isFork ? 'true' : 'false';
 
-        return item.rawValue ? valueText : `isFork: ${valueText}`;
+        return item.rawValue ? valueText : `Frk: ${valueText}`;
     }
 
     getDynamicColors(

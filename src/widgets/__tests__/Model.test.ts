@@ -18,7 +18,7 @@ describe('ModelWidget', () => {
             const context: RenderContext = { isPreview: true, data: {} };
             const item: WidgetItem = { id: '1', type: 'model' };
 
-            expect(widget.render(item, context, DEFAULT_SETTINGS)).toBe('Model: Claude');
+            expect(widget.render(item, context, DEFAULT_SETTINGS)).toBe('Mdl: Claude');
         });
 
         it('should render preview with raw value', () => {
@@ -35,7 +35,7 @@ describe('ModelWidget', () => {
             };
             const item: WidgetItem = { id: '1', type: 'model' };
 
-            expect(widget.render(item, context, DEFAULT_SETTINGS)).toBe('Model: Claude 3.5 Sonnet');
+            expect(widget.render(item, context, DEFAULT_SETTINGS)).toBe('Mdl: Claude 3.5 Sonnet');
         });
 
         it('should render model with raw value', () => {
@@ -62,7 +62,7 @@ describe('ModelWidget', () => {
             };
             const item: WidgetItem = { id: '1', type: 'model' };
 
-            expect(widget.render(item, context, DEFAULT_SETTINGS)).toBe('Model: Claude 3.5 Sonnet');
+            expect(widget.render(item, context, DEFAULT_SETTINGS)).toBe('Mdl: Claude 3.5 Sonnet');
         });
 
         it('should fallback to model id when display_name not available', () => {
@@ -72,7 +72,7 @@ describe('ModelWidget', () => {
             };
             const item: WidgetItem = { id: '1', type: 'model' };
 
-            expect(widget.render(item, context, DEFAULT_SETTINGS)).toBe('Model: claude-3-5-sonnet');
+            expect(widget.render(item, context, DEFAULT_SETTINGS)).toBe('Mdl: claude-3-5-sonnet');
         });
     });
 

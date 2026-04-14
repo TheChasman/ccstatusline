@@ -112,7 +112,7 @@ describe('ThinkingEffortWidget', () => {
     describe('preview mode', () => {
         it('returns labelled preview', () => {
             const result = render({ isPreview: true });
-            expect(result).toBe('Thinking: high');
+            expect(result).toBe('Eff: high');
         });
 
         it('returns raw preview', () => {
@@ -127,7 +127,7 @@ describe('ThinkingEffortWidget', () => {
                 fileContent: makeTranscriptEntry(MODEL_WITH_HIGH_EFFORT),
                 settingsValue: { effortLevel: 'low' }
             });
-            expect(result).toBe('Thinking: high');
+            expect(result).toBe('Eff: high');
         });
 
         it('returns raw transcript effort when requested', () => {
@@ -140,7 +140,7 @@ describe('ThinkingEffortWidget', () => {
 
         it('supports max effort from transcript output', () => {
             const result = render({ fileContent: makeTranscriptEntry(MODEL_WITH_MAX_EFFORT) });
-            expect(result).toBe('Thinking: max');
+            expect(result).toBe('Eff: max');
         });
 
         it('does not keep stale transcript effort when a newer /model output has no effort', () => {
@@ -152,7 +152,7 @@ describe('ThinkingEffortWidget', () => {
                 ].join('\n'),
                 settingsValue: { effortLevel: 'medium' }
             });
-            expect(result).toBe('Thinking: medium');
+            expect(result).toBe('Eff: medium');
         });
     });
 
@@ -162,7 +162,7 @@ describe('ThinkingEffortWidget', () => {
                 fileContent: makeTranscriptEntry(MODEL_WITHOUT_EFFORT),
                 settingsValue: { effortLevel: 'high' }
             });
-            expect(result).toBe('Thinking: high');
+            expect(result).toBe('Eff: high');
         });
 
         it('falls back to effortLevel when the transcript is unavailable', () => {
@@ -171,27 +171,27 @@ describe('ThinkingEffortWidget', () => {
                 fileContent: null,
                 settingsValue: { effortLevel: 'high' }
             });
-            expect(result).toBe('Thinking: high');
+            expect(result).toBe('Eff: high');
         });
 
         it('handles case-insensitive effortLevel', () => {
             const result = render({ settingsValue: { effortLevel: 'HIGH' } });
-            expect(result).toBe('Thinking: high');
+            expect(result).toBe('Eff: high');
         });
 
         it('supports max effortLevel', () => {
             const result = render({ settingsValue: { effortLevel: 'max' } });
-            expect(result).toBe('Thinking: max');
+            expect(result).toBe('Eff: max');
         });
 
         it('defaults to medium when effortLevel is not set', () => {
             const result = render();
-            expect(result).toBe('Thinking: medium');
+            expect(result).toBe('Eff: medium');
         });
 
         it('defaults to medium when effortLevel is invalid', () => {
             const result = render({ settingsValue: { effortLevel: 'ultra' } });
-            expect(result).toBe('Thinking: medium');
+            expect(result).toBe('Eff: medium');
         });
 
         it('defaults to medium when settings read fails', () => {
@@ -199,12 +199,12 @@ describe('ThinkingEffortWidget', () => {
                 throw new Error('settings unavailable');
             });
             const result = render();
-            expect(result).toBe('Thinking: medium');
+            expect(result).toBe('Eff: medium');
         });
 
         it('defaults to medium when the latest /model output has no effort and settings are missing', () => {
             const result = render({ fileContent: makeTranscriptEntry(MODEL_WITHOUT_EFFORT) });
-            expect(result).toBe('Thinking: medium');
+            expect(result).toBe('Eff: medium');
         });
     });
 

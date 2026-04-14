@@ -132,7 +132,7 @@ export class CurrentWorkingDirWidget implements Widget {
                 previewPath = '/Users/example/Documents/Projects/my-project';
             }
 
-            return item.rawValue ? previewPath : `cwd: ${previewPath}`;
+            return previewPath;
         }
 
         const cwd = context.data?.cwd;
@@ -169,7 +169,7 @@ export class CurrentWorkingDirWidget implements Widget {
             }
         }
 
-        return item.rawValue ? displayPath : `cwd: ${displayPath}`;
+        return displayPath;
     }
 
     getCustomKeybinds(): CustomKeybind[] {

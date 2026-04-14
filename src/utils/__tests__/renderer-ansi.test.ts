@@ -225,6 +225,6 @@ describe('renderer minimalist mode', () => {
         const preRenderedLines = preRenderAllWidgets([widgets], settings, context);
         const content = preRenderedLines[0]?.[0]?.content;
 
-        expect(content).toBe('Model: Claude');
+        expect(content).toBe('Mdl: Claude');
     });
 });
