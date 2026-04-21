@@ -5,7 +5,7 @@ export const TRAFFIC_LIGHT_COLOURS = {
     yellow: { ansi256: 'ansi256:220', truecolor: 'hex:FFD700' },
     orange: { ansi256: 'ansi256:214', truecolor: 'hex:FFAF00' },
     red:    { ansi256: 'ansi256:196', truecolor: 'hex:FF0000' },
-    purple: { ansi256: 'ansi256:93',  truecolor: 'hex:8700FF' },
+    purple: { ansi256: 'ansi256:93',  truecolor: 'hex:8700FF' }
 } as const;
 
 export type TrafficLightColor = keyof typeof TRAFFIC_LIGHT_COLOURS;

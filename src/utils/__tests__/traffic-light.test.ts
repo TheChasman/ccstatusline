@@ -1,5 +1,13 @@
-import { describe, it, expect } from 'vitest';
-import { getTrafficLightColor, TRAFFIC_LIGHT_COLOURS } from '../traffic-light';
+import {
+    describe,
+    expect,
+    it
+} from 'vitest';
+
+import {
+    TRAFFIC_LIGHT_COLOURS,
+    getTrafficLightColor
+} from '../traffic-light';
 
 describe('traffic-light utility', () => {
     it('exports all five traffic-light stops', () => {

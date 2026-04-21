@@ -18,8 +18,8 @@ function normalizeThinkingEffort(value: string | undefined): TranscriptThinkingE
 
     const normalized = value.toLowerCase();
     if (
-        normalized === 'low' || normalized === 'medium' || normalized === 'high' ||
-        normalized === 'xhigh' || normalized === 'max' || normalized === 'auto'
+        normalized === 'low' || normalized === 'medium' || normalized === 'high'
+        || normalized === 'xhigh' || normalized === 'max' || normalized === 'auto'
     ) {
         return normalized;
     }

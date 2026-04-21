@@ -128,7 +128,7 @@ function renderPowerlineStatusLine(
     const terminalWidth = resolveEffectiveTerminalWidth(detectedWidth, settings, context);
 
     // Build widget elements (similar to regular mode but without separators)
-    const widgetElements: { content: string; bgColor?: string; fgColor?: string; widget: WidgetItem }[] = [];
+    const widgetElements: { content: string; bgColor?: string; fgColor?: string; isBold?: boolean; widget: WidgetItem }[] = [];
     let widgetColorIndex = continueThemeAcrossLines ? globalThemeColorOffset : 0;
 
     // Create a mapping from filteredWidgets to preRenderedWidgets indices

@@ -22,7 +22,8 @@ export class ProjectDirWidget implements Widget {
         }
 
         const projectDir = context.data?.workspace?.project_dir ?? context.data?.cwd;
-        if (!projectDir) return null;
+        if (!projectDir)
+            return null;
 
         const name = projectDir.replace(/[\\/]+$/, '').split(/[\\/]/).filter(Boolean).pop() ?? projectDir;
 

@@ -85,7 +85,7 @@ export class GitIsForkWidget implements Widget {
         if (settings.powerline.enabled) {
             return {
                 backgroundColor: color,
-                color: 'black',
+                color: 'black'
             };
         }
 

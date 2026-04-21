@@ -7,8 +7,11 @@ import type {
     WidgetItem
 } from '../types/Widget';
 import { loadClaudeSettingsSync } from '../utils/claude-settings';
-import { getTrafficLightColor, type TrafficLightColor } from '../utils/traffic-light';
 import { getTranscriptThinkingEffort } from '../utils/jsonl';
+import {
+    getTrafficLightColor,
+    type TrafficLightColor
+} from '../utils/traffic-light';
 
 export type ThinkingEffortLevel = 'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'auto';
 
@@ -22,8 +25,8 @@ function normalizeThinkingEffort(value: string | undefined): ThinkingEffortLevel
 
     const normalized = value.toLowerCase();
     if (
-        normalized === 'low' || normalized === 'medium' || normalized === 'high' ||
-        normalized === 'xhigh' || normalized === 'max' || normalized === 'auto'
+        normalized === 'low' || normalized === 'medium' || normalized === 'high'
+        || normalized === 'xhigh' || normalized === 'max' || normalized === 'auto'
     ) {
         return normalized;
     }
@@ -84,7 +87,7 @@ export class ThinkingEffortWidget implements Widget {
             return {
                 backgroundColor: getTrafficLightColor('red', settings.colorLevel),
                 color: 'white',
-                bold: true,
+                bold: true
             };
         }
 
@@ -92,19 +95,17 @@ export class ThinkingEffortWidget implements Widget {
             if (settings.powerline.enabled) {
                 return {
                     backgroundColor: getTrafficLightColor('purple', settings.colorLevel),
-                    color: 'black',
+                    color: 'black'
                 };
             }
-            return {
-                color: getTrafficLightColor('purple', settings.colorLevel),
-            };
+            return { color: getTrafficLightColor('purple', settings.colorLevel) };
         }
 
         const trafficMap: Record<'low' | 'medium' | 'high' | 'xhigh', TrafficLightColor> = {
             low: 'green',
             medium: 'yellow',
             high: 'orange',
-            xhigh: 'red',
+            xhigh: 'red'
         };
 
         const color = getTrafficLightColor(trafficMap[effortLevel], settings.colorLevel);
@@ -112,7 +113,7 @@ export class ThinkingEffortWidget implements Widget {
         if (settings.powerline.enabled) {
             return {
                 backgroundColor: color,
-                color: 'black',
+                color: 'black'
             };
         }
 

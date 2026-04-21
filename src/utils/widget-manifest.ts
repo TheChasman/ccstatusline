@@ -71,6 +71,7 @@ export const WIDGET_MANIFEST: WidgetManifestEntry[] = [
     { type: 'context-bar', create: () => new widgets.ContextBarWidget() },
     { type: 'skills', create: () => new widgets.SkillsWidget() },
     { type: 'thinking-effort', create: () => new widgets.ThinkingEffortWidget() },
+    { type: 'auto-effort-mode', create: () => new widgets.AutoEffortModeWidget() },
     { type: 'vim-mode', create: () => new widgets.VimModeWidget() },
     { type: 'worktree-mode', create: () => new widgets.GitWorktreeModeWidget() },
     { type: 'worktree-name', create: () => new widgets.GitWorktreeNameWidget() },

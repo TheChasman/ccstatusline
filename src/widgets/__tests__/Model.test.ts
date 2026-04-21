@@ -78,48 +78,34 @@ describe('ModelWidget', () => {
 
     describe('getDynamicColors', () => {
         it('returns green for haiku models', () => {
-            const context: RenderContext = {
-                data: { model: 'Claude 3.5 Haiku' }
-            };
+            const context: RenderContext = { data: { model: 'Claude 3.5 Haiku' } };
             const item: WidgetItem = { id: '1', type: 'model' };
 
-            const result = widget.getDynamicColors?.(item, context, DEFAULT_SETTINGS);
-            expect(result).toEqual({
-                color: getTrafficLightColor('green', DEFAULT_SETTINGS.colorLevel)
-            });
+            const result = widget.getDynamicColors(item, context, DEFAULT_SETTINGS);
+            expect(result).toEqual({ color: getTrafficLightColor('green', DEFAULT_SETTINGS.colorLevel) });
         });
 
         it('returns orange for sonnet models', () => {
-            const context: RenderContext = {
-                data: { model: 'Claude 3.5 Sonnet' }
-            };
+            const context: RenderContext = { data: { model: 'Claude 3.5 Sonnet' } };
             const item: WidgetItem = { id: '1', type: 'model' };
 
-            const result = widget.getDynamicColors?.(item, context, DEFAULT_SETTINGS);
-            expect(result).toEqual({
-                color: getTrafficLightColor('orange', DEFAULT_SETTINGS.colorLevel)
-            });
+            const result = widget.getDynamicColors(item, context, DEFAULT_SETTINGS);
+            expect(result).toEqual({ color: getTrafficLightColor('orange', DEFAULT_SETTINGS.colorLevel) });
         });
 
         it('returns red for opus models', () => {
-            const context: RenderContext = {
-                data: { model: 'Claude 3 Opus' }
-            };
+            const context: RenderContext = { data: { model: 'Claude 3 Opus' } };
             const item: WidgetItem = { id: '1', type: 'model' };
 
-            const result = widget.getDynamicColors?.(item, context, DEFAULT_SETTINGS);
-            expect(result).toEqual({
-                color: getTrafficLightColor('red', DEFAULT_SETTINGS.colorLevel)
-            });
+            const result = widget.getDynamicColors(item, context, DEFAULT_SETTINGS);
+            expect(result).toEqual({ color: getTrafficLightColor('red', DEFAULT_SETTINGS.colorLevel) });
         });
 
         it('returns null for unknown models', () => {
-            const context: RenderContext = {
-                data: { model: 'CustomModel' }
-            };
+            const context: RenderContext = { data: { model: 'CustomModel' } };
             const item: WidgetItem = { id: '1', type: 'model' };
 
-            const result = widget.getDynamicColors?.(item, context, DEFAULT_SETTINGS);
+            const result = widget.getDynamicColors(item, context, DEFAULT_SETTINGS);
             expect(result).toBeNull();
         });
 
@@ -127,30 +113,24 @@ describe('ModelWidget', () => {
             const context: RenderContext = { data: {} };
             const item: WidgetItem = { id: '1', type: 'model' };
 
-            const result = widget.getDynamicColors?.(item, context, DEFAULT_SETTINGS);
+            const result = widget.getDynamicColors(item, context, DEFAULT_SETTINGS);
             expect(result).toBeNull();
         });
 
         it('matches model family case-insensitively', () => {
-            const context: RenderContext = {
-                data: { model: 'CLAUDE 3.5 SONNET' }
-            };
+            const context: RenderContext = { data: { model: 'CLAUDE 3.5 SONNET' } };
             const item: WidgetItem = { id: '1', type: 'model' };
 
-            const result = widget.getDynamicColors?.(item, context, DEFAULT_SETTINGS);
-            expect(result).toEqual({
-                color: getTrafficLightColor('orange', DEFAULT_SETTINGS.colorLevel)
-            });
+            const result = widget.getDynamicColors(item, context, DEFAULT_SETTINGS);
+            expect(result).toEqual({ color: getTrafficLightColor('orange', DEFAULT_SETTINGS.colorLevel) });
         });
 
         it('returns backgroundColor and color for powerline mode', () => {
-            const context: RenderContext = {
-                data: { model: 'Claude 3.5 Sonnet' }
-            };
+            const context: RenderContext = { data: { model: 'Claude 3.5 Sonnet' } };
             const item: WidgetItem = { id: '1', type: 'model' };
             const settings = { ...DEFAULT_SETTINGS, powerline: { ...DEFAULT_SETTINGS.powerline, enabled: true } };
 
-            const result = widget.getDynamicColors?.(item, context, settings);
+            const result = widget.getDynamicColors(item, context, settings);
             expect(result).toEqual({
                 backgroundColor: getTrafficLightColor('orange', settings.colorLevel),
                 color: 'black'
@@ -158,24 +138,18 @@ describe('ModelWidget', () => {
         });
 
         it('handles model object in getDynamicColors', () => {
-            const context: RenderContext = {
-                data: { model: { display_name: 'Claude 3.5 Sonnet' } }
-            };
+            const context: RenderContext = { data: { model: { display_name: 'Claude 3.5 Sonnet' } } };
             const item: WidgetItem = { id: '1', type: 'model' };
 
-            const result = widget.getDynamicColors?.(item, context, DEFAULT_SETTINGS);
-            expect(result).toEqual({
-                color: getTrafficLightColor('orange', DEFAULT_SETTINGS.colorLevel)
-            });
+            const result = widget.getDynamicColors(item, context, DEFAULT_SETTINGS);
+            expect(result).toEqual({ color: getTrafficLightColor('orange', DEFAULT_SETTINGS.colorLevel) });
         });
 
         it('returns null for model object without identifiable data', () => {
-            const context: RenderContext = {
-                data: { model: {} }
-            };
+            const context: RenderContext = { data: { model: {} } };
             const item: WidgetItem = { id: '1', type: 'model' };
 
-            const result = widget.getDynamicColors?.(item, context, DEFAULT_SETTINGS);
+            const result = widget.getDynamicColors(item, context, DEFAULT_SETTINGS);
             expect(result).toBeNull();
         });
     });

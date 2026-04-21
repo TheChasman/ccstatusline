@@ -52,6 +52,7 @@ export { ContextBarWidget } from './ContextBar';
 export { LinkWidget } from './Link';
 export { SkillsWidget } from './Skills';
 export { ThinkingEffortWidget } from './ThinkingEffort';
+export { AutoEffortModeWidget } from './AutoEffortMode';
 export { VimModeWidget } from './VimMode';
 export { GitWorktreeModeWidget } from './GitWorktreeMode';
 export { GitWorktreeNameWidget } from './GitWorktreeName';

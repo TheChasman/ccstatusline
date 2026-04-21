@@ -1,7 +1,5 @@
 import type { RenderContext } from '../types/RenderContext';
-import type {
-    Settings
-} from '../types/Settings';
+import type { Settings } from '../types/Settings';
 import type {
     DynamicColors,
     Widget,
@@ -51,7 +49,7 @@ export class ModelWidget implements Widget {
         }
 
         const lowerName = modelDisplayName.toLowerCase();
-        let trafficLightLevel: 'green' | 'orange' | 'red' | null = null;
+        let trafficLightLevel: 'green' | 'orange' | 'red';
 
         if (lowerName.includes('haiku')) {
             trafficLightLevel = 'green';
@@ -72,9 +70,7 @@ export class ModelWidget implements Widget {
             };
         }
 
-        return {
-            color
-        };
+        return { color };
     }
 
     supportsRawValue(): boolean { return true; }
