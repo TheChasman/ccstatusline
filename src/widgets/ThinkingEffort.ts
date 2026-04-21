@@ -10,7 +10,7 @@ import { loadClaudeSettingsSync } from '../utils/claude-settings';
 import { getTrafficLightColor } from '../utils/traffic-light';
 import { getTranscriptThinkingEffort } from '../utils/jsonl';
 
-export type ThinkingEffortLevel = 'low' | 'medium' | 'high' | 'max';
+export type ThinkingEffortLevel = 'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'auto';
 
 /**
  * Resolve thinking effort from transcript and settings.
@@ -21,7 +21,10 @@ function normalizeThinkingEffort(value: string | undefined): ThinkingEffortLevel
     }
 
     const normalized = value.toLowerCase();
-    if (normalized === 'low' || normalized === 'medium' || normalized === 'high' || normalized === 'max') {
+    if (
+        normalized === 'low' || normalized === 'medium' || normalized === 'high' ||
+        normalized === 'xhigh' || normalized === 'max' || normalized === 'auto'
+    ) {
         return normalized;
     }
 
