@@ -1,37 +1,23 @@
 import type { ColorLevel } from '../types/ColorLevel';
 
 export const TRAFFIC_LIGHT_COLOURS = {
-  green: {
-    ansi16: 'green',
-    ansi256: 'ansi256:34',
-    truecolor: 'hex:00AF00',
-  },
-  amber: {
-    ansi16: 'yellow',
-    ansi256: 'ansi256:214',
-    truecolor: 'hex:FFAF00',
-  },
-  red: {
-    ansi16: 'red',
-    ansi256: 'ansi256:196',
-    truecolor: 'hex:FF0000',
-  },
+    green:  { ansi256: 'ansi256:34',  truecolor: 'hex:00AF00' },
+    yellow: { ansi256: 'ansi256:220', truecolor: 'hex:FFD700' },
+    orange: { ansi256: 'ansi256:214', truecolor: 'hex:FFAF00' },
+    red:    { ansi256: 'ansi256:196', truecolor: 'hex:FF0000' },
+    purple: { ansi256: 'ansi256:93',  truecolor: 'hex:8700FF' },
 } as const;
 
 export type TrafficLightColor = keyof typeof TRAFFIC_LIGHT_COLOURS;
 
 /**
  * Resolve a traffic-light colour to the appropriate ANSI code based on colour depth.
- * @param level - 'green', 'amber', or 'red'
- * @param colorLevel - Colour depth: 1=ansi16, 2=ansi256, 3=truecolor
+ * Operates at ansi256 minimum — colorLevel 1 is treated as 2.
  */
 export function getTrafficLightColor(level: TrafficLightColor, colorLevel: ColorLevel): string {
-  if (colorLevel === 1) {
-    return TRAFFIC_LIGHT_COLOURS[level].ansi16;
-  }
-  if (colorLevel === 2) {
-    return TRAFFIC_LIGHT_COLOURS[level].ansi256;
-  }
-  // colorLevel === 3 (truecolor)
-  return TRAFFIC_LIGHT_COLOURS[level].truecolor;
+    const effectiveLevel = colorLevel < 2 ? 2 : colorLevel;
+    if (effectiveLevel === 2) {
+        return TRAFFIC_LIGHT_COLOURS[level].ansi256;
+    }
+    return TRAFFIC_LIGHT_COLOURS[level].truecolor;
 }
