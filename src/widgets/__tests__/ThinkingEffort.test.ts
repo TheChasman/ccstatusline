@@ -28,6 +28,8 @@ const MODEL_WITH_HIGH_EFFORT = '<local-command-stdout>Set model to \u001b[1mopus
 const MODEL_WITH_LOW_EFFORT = '<local-command-stdout>Set model to \u001b[1msonnet (claude-sonnet-4-5)\u001b[22m with \u001b[1mlow\u001b[22m effort</local-command-stdout>';
 const MODEL_WITH_MAX_EFFORT = '<local-command-stdout>Set model to \u001b[1mopus (claude-opus-4-6)\u001b[22m with \u001b[1mmax\u001b[22m effort</local-command-stdout>';
 const MODEL_WITHOUT_EFFORT = '<local-command-stdout>Set model to \u001b[1msonnet (claude-sonnet-4-5)\u001b[22m</local-command-stdout>';
+const MODEL_WITH_XHIGH_EFFORT = '<local-command-stdout>Set model to \u001b[1mopus (claude-opus-4-7)\u001b[22m with \u001b[1mxhigh\u001b[22m effort</local-command-stdout>';
+const MODEL_WITH_AUTO_EFFORT = '<local-command-stdout>Set model to \u001b[1mopus (claude-opus-4-7)\u001b[22m with \u001b[1mauto\u001b[22m effort</local-command-stdout>';
 
 let tempDir: string;
 
@@ -143,6 +145,20 @@ describe('ThinkingEffortWidget', () => {
             expect(result).toBe('Eff: max');
         });
 
+        it('reads xhigh effort from the latest /model transcript stdout', () => {
+            const result = render({
+                fileContent: makeTranscriptEntry(MODEL_WITH_XHIGH_EFFORT),
+            });
+            expect(result).toBe('Eff: xhigh');
+        });
+
+        it('reads auto effort from the latest /model transcript stdout', () => {
+            const result = render({
+                fileContent: makeTranscriptEntry(MODEL_WITH_AUTO_EFFORT),
+            });
+            expect(result).toBe('Eff: auto');
+        });
+
         it('does not keep stale transcript effort when a newer /model output has no effort', () => {
             const result = render({
                 fileContent: [
@@ -182,6 +198,16 @@ describe('ThinkingEffortWidget', () => {
         it('supports max effortLevel', () => {
             const result = render({ settingsValue: { effortLevel: 'max' } });
             expect(result).toBe('Eff: max');
+        });
+
+        it('supports xhigh effortLevel', () => {
+            const result = render({ settingsValue: { effortLevel: 'xhigh' } });
+            expect(result).toBe('Eff: xhigh');
+        });
+
+        it('supports auto effortLevel', () => {
+            const result = render({ settingsValue: { effortLevel: 'auto' } });
+            expect(result).toBe('Eff: auto');
         });
 
         it('defaults to medium when effortLevel is not set', () => {

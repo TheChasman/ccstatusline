@@ -4,10 +4,10 @@ import {
     readJsonlLinesSync
 } from './jsonl-lines';
 
-export type TranscriptThinkingEffort = 'low' | 'medium' | 'high' | 'max';
+export type TranscriptThinkingEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'auto';
 
 const MODEL_STDOUT_PREFIX = '<local-command-stdout>Set model to ';
-const MODEL_STDOUT_EFFORT_REGEX = /^<local-command-stdout>Set model to[\s\S]*? with (low|medium|high|max) effort<\/local-command-stdout>$/i;
+const MODEL_STDOUT_EFFORT_REGEX = /^<local-command-stdout>Set model to[\s\S]*? with (low|medium|high|xhigh|max|auto) effort<\/local-command-stdout>$/i;
 
 interface TranscriptEntry { message?: { content?: string } }
 
@@ -17,7 +17,10 @@ function normalizeThinkingEffort(value: string | undefined): TranscriptThinkingE
     }
 
     const normalized = value.toLowerCase();
-    if (normalized === 'low' || normalized === 'medium' || normalized === 'high' || normalized === 'max') {
+    if (
+        normalized === 'low' || normalized === 'medium' || normalized === 'high' ||
+        normalized === 'xhigh' || normalized === 'max' || normalized === 'auto'
+    ) {
         return normalized;
     }
 
