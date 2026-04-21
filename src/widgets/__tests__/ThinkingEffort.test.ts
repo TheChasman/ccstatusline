@@ -248,7 +248,7 @@ describe('ThinkingEffortWidget', () => {
             });
         });
 
-        it('returns amber for medium effort', () => {
+        it('returns yellow for medium effort', () => {
             const widget = new ThinkingEffortWidget();
             const context: RenderContext = {
                 data: { thinking_effort: 'medium' },
@@ -257,11 +257,11 @@ describe('ThinkingEffortWidget', () => {
 
             const result = widget.getDynamicColors?.(item, context, DEFAULT_SETTINGS);
             expect(result).toEqual({
-                color: getTrafficLightColor('amber', DEFAULT_SETTINGS.colorLevel),
+                color: getTrafficLightColor('yellow', DEFAULT_SETTINGS.colorLevel),
             });
         });
 
-        it('returns red for high effort', () => {
+        it('returns orange for high effort', () => {
             const widget = new ThinkingEffortWidget();
             const context: RenderContext = {
                 data: { thinking_effort: 'high' },
@@ -270,7 +270,7 @@ describe('ThinkingEffortWidget', () => {
 
             const result = widget.getDynamicColors?.(item, context, DEFAULT_SETTINGS);
             expect(result).toEqual({
-                color: getTrafficLightColor('red', DEFAULT_SETTINGS.colorLevel),
+                color: getTrafficLightColor('orange', DEFAULT_SETTINGS.colorLevel),
             });
         });
 
@@ -308,14 +308,58 @@ describe('ThinkingEffortWidget', () => {
             });
         });
 
-        it('defaults to amber when no effort data', () => {
+        it('defaults to yellow when no effort data', () => {
             const widget = new ThinkingEffortWidget();
             const context: RenderContext = { data: {} };
             const item: WidgetItem = { id: '1', type: 'thinking-effort' };
 
             const result = widget.getDynamicColors?.(item, context, DEFAULT_SETTINGS);
             expect(result).toEqual({
-                color: getTrafficLightColor('amber', DEFAULT_SETTINGS.colorLevel),
+                color: getTrafficLightColor('yellow', DEFAULT_SETTINGS.colorLevel),
+            });
+        });
+
+        it('returns red for xhigh effort', () => {
+            const widget = new ThinkingEffortWidget();
+            const context: RenderContext = {
+                data: { thinking_effort: 'xhigh' },
+            };
+            const item: WidgetItem = { id: '1', type: 'thinking-effort' };
+
+            const result = widget.getDynamicColors?.(item, context, DEFAULT_SETTINGS);
+            expect(result).toEqual({
+                color: getTrafficLightColor('red', DEFAULT_SETTINGS.colorLevel),
+            });
+        });
+
+        it('returns purple for auto effort (normal mode)', () => {
+            const widget = new ThinkingEffortWidget();
+            const context: RenderContext = {
+                data: { thinking_effort: 'auto' },
+            };
+            const item: WidgetItem = { id: '1', type: 'thinking-effort' };
+            const settings = structuredClone(DEFAULT_SETTINGS);
+            settings.powerline.enabled = false;
+
+            const result = widget.getDynamicColors?.(item, context, settings);
+            expect(result).toEqual({
+                color: getTrafficLightColor('purple', settings.colorLevel),
+            });
+        });
+
+        it('returns purple background + black text for auto effort (powerline mode)', () => {
+            const widget = new ThinkingEffortWidget();
+            const context: RenderContext = {
+                data: { thinking_effort: 'auto' },
+            };
+            const item: WidgetItem = { id: '1', type: 'thinking-effort' };
+            const settings = structuredClone(DEFAULT_SETTINGS);
+            settings.powerline.enabled = true;
+
+            const result = widget.getDynamicColors?.(item, context, settings);
+            expect(result).toEqual({
+                backgroundColor: getTrafficLightColor('purple', settings.colorLevel),
+                color: 'black',
             });
         });
 

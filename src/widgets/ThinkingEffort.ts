@@ -7,7 +7,7 @@ import type {
     WidgetItem
 } from '../types/Widget';
 import { loadClaudeSettingsSync } from '../utils/claude-settings';
-import { getTrafficLightColor } from '../utils/traffic-light';
+import { getTrafficLightColor, type TrafficLightColor } from '../utils/traffic-light';
 import { getTranscriptThinkingEffort } from '../utils/jsonl';
 
 export type ThinkingEffortLevel = 'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'auto';
@@ -50,7 +50,7 @@ function resolveThinkingEffort(context: RenderContext): ThinkingEffortLevel {
 
 export class ThinkingEffortWidget implements Widget {
     getDefaultColor(): string { return 'magenta'; }
-    getDescription(): string { return 'Displays the current thinking effort level (low, medium, high, max).\nMay be incorrect when multiple Claude Code sessions are running due to current Claude Code limitations.'; }
+    getDescription(): string { return 'Displays the current thinking effort level (low, medium, high, xhigh, max, auto).\nMay be incorrect when multiple Claude Code sessions are running due to current Claude Code limitations.'; }
     getDisplayName(): string { return 'Thinking Effort'; }
     getCategory(): string { return 'Core'; }
     getEditorDisplay(item: WidgetItem): WidgetEditorDisplay {
@@ -71,7 +71,6 @@ export class ThinkingEffortWidget implements Widget {
         context: RenderContext,
         settings: Settings
     ): DynamicColors | null {
-        // Resolve effort level: check direct context.data first, then fall back to transcript/settings
         let effortLevel: ThinkingEffortLevel;
 
         if (context.data?.thinking_effort) {
@@ -81,7 +80,6 @@ export class ThinkingEffortWidget implements Widget {
             effortLevel = resolveThinkingEffort(context);
         }
 
-        // Max gets special treatment: red background + bold white, both modes
         if (effortLevel === 'max') {
             return {
                 backgroundColor: getTrafficLightColor('red', settings.colorLevel),
@@ -90,19 +88,26 @@ export class ThinkingEffortWidget implements Widget {
             };
         }
 
-        // Map low/medium/high to traffic-light colours
-        let trafficLightLevel: 'green' | 'amber' | 'red';
-
-        if (effortLevel === 'low') {
-            trafficLightLevel = 'green';
-        } else if (effortLevel === 'high') {
-            trafficLightLevel = 'red';
-        } else {
-            // medium (or any other unknown value defaults to medium)
-            trafficLightLevel = 'amber';
+        if (effortLevel === 'auto') {
+            if (settings.powerline.enabled) {
+                return {
+                    backgroundColor: getTrafficLightColor('purple', settings.colorLevel),
+                    color: 'black',
+                };
+            }
+            return {
+                color: getTrafficLightColor('purple', settings.colorLevel),
+            };
         }
 
-        const color = getTrafficLightColor(trafficLightLevel, settings.colorLevel);
+        const trafficMap: Record<'low' | 'medium' | 'high' | 'xhigh', TrafficLightColor> = {
+            low: 'green',
+            medium: 'yellow',
+            high: 'orange',
+            xhigh: 'red',
+        };
+
+        const color = getTrafficLightColor(trafficMap[effortLevel], settings.colorLevel);
 
         if (settings.powerline.enabled) {
             return {
@@ -111,9 +116,7 @@ export class ThinkingEffortWidget implements Widget {
             };
         }
 
-        return {
-            color,
-        };
+        return { color };
     }
 
     supportsRawValue(): boolean { return true; }
