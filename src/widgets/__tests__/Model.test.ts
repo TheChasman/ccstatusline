@@ -89,7 +89,7 @@ describe('ModelWidget', () => {
             });
         });
 
-        it('returns amber for sonnet models', () => {
+        it('returns orange for sonnet models', () => {
             const context: RenderContext = {
                 data: { model: 'Claude 3.5 Sonnet' }
             };
@@ -97,7 +97,7 @@ describe('ModelWidget', () => {
 
             const result = widget.getDynamicColors?.(item, context, DEFAULT_SETTINGS);
             expect(result).toEqual({
-                color: getTrafficLightColor('amber', DEFAULT_SETTINGS.colorLevel)
+                color: getTrafficLightColor('orange', DEFAULT_SETTINGS.colorLevel)
             });
         });
 
@@ -139,7 +139,7 @@ describe('ModelWidget', () => {
 
             const result = widget.getDynamicColors?.(item, context, DEFAULT_SETTINGS);
             expect(result).toEqual({
-                color: getTrafficLightColor('amber', DEFAULT_SETTINGS.colorLevel)
+                color: getTrafficLightColor('orange', DEFAULT_SETTINGS.colorLevel)
             });
         });
 
@@ -152,7 +152,7 @@ describe('ModelWidget', () => {
 
             const result = widget.getDynamicColors?.(item, context, settings);
             expect(result).toEqual({
-                backgroundColor: getTrafficLightColor('amber', settings.colorLevel),
+                backgroundColor: getTrafficLightColor('orange', settings.colorLevel),
                 color: 'black'
             });
         });
@@ -165,7 +165,7 @@ describe('ModelWidget', () => {
 
             const result = widget.getDynamicColors?.(item, context, DEFAULT_SETTINGS);
             expect(result).toEqual({
-                color: getTrafficLightColor('amber', DEFAULT_SETTINGS.colorLevel)
+                color: getTrafficLightColor('orange', DEFAULT_SETTINGS.colorLevel)
             });
         });
 

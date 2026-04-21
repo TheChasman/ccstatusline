@@ -51,12 +51,12 @@ export class ModelWidget implements Widget {
         }
 
         const lowerName = modelDisplayName.toLowerCase();
-        let trafficLightLevel: 'green' | 'amber' | 'red' | null = null;
+        let trafficLightLevel: 'green' | 'orange' | 'red' | null = null;
 
         if (lowerName.includes('haiku')) {
             trafficLightLevel = 'green';
         } else if (lowerName.includes('sonnet')) {
-            trafficLightLevel = 'amber';
+            trafficLightLevel = 'orange';
         } else if (lowerName.includes('opus')) {
             trafficLightLevel = 'red';
         } else {
