@@ -2,6 +2,7 @@ import type { RenderContext } from '../types/RenderContext';
 import type { Settings } from '../types/Settings';
 import type {
     CustomKeybind,
+    DynamicColors,
     Widget,
     WidgetEditorDisplay,
     WidgetItem
@@ -11,6 +12,7 @@ import {
     getContextConfig,
     getModelContextIdentifier
 } from '../utils/model-context';
+import { getTrafficLightColor } from '../utils/traffic-light';
 import { makeUsageProgressBar } from '../utils/usage';
 
 type DisplayMode = 'progress' | 'progress-short';
@@ -97,6 +99,50 @@ export class ContextBarWidget implements Widget {
         return [
             { key: 'p', label: '(p)rogress toggle', action: 'toggle-progress' }
         ];
+    }
+
+    getDynamicColors(
+        item: WidgetItem,
+        context: RenderContext,
+        settings: Settings
+    ): DynamicColors | null {
+        if (context.isPreview) {
+            return null;
+        }
+
+        const contextWindowMetrics = getContextWindowMetrics(context.data);
+        let total = contextWindowMetrics.windowSize;
+        let used = contextWindowMetrics.contextLengthTokens;
+
+        if (used === null && context.tokenMetrics) {
+            used = context.tokenMetrics.contextLength;
+        }
+
+        if (total === null && context.tokenMetrics) {
+            const modelIdentifier = getModelContextIdentifier(context.data?.model);
+            total = getContextConfig(modelIdentifier).maxTokens;
+        }
+
+        if (used === null || total === null || total <= 0) {
+            return null;
+        }
+
+        const percent = Math.max(0, Math.min(100, (used / total) * 100));
+
+        if (percent >= 70) {
+            const red = getTrafficLightColor('red', settings.colorLevel);
+            return { backgroundColor: red, color: 'white' };
+        }
+
+        if (percent >= 60) {
+            return { color: getTrafficLightColor('red', settings.colorLevel) };
+        }
+
+        if (percent >= 50) {
+            return { color: getTrafficLightColor('orange', settings.colorLevel) };
+        }
+
+        return null;
     }
 
     supportsRawValue(): boolean { return true; }

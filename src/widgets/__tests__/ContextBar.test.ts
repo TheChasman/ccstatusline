@@ -162,4 +162,61 @@ describe('ContextBarWidget', () => {
         expect(toLong?.metadata?.display).toBe('progress');
         expect(toShort?.metadata?.display).toBe('progress-short');
     });
+
+    describe('getDynamicColors', () => {
+        function makeContext(used: number, total: number): RenderContext {
+            return {
+                data: {
+                    context_window: {
+                        context_window_size: total,
+                        current_usage: {
+                            input_tokens: used,
+                            output_tokens: 0,
+                            cache_creation_input_tokens: 0,
+                            cache_read_input_tokens: 0
+                        }
+                    }
+                }
+            };
+        }
+
+        it('returns null below 50%', () => {
+            const widget = new ContextBarWidget();
+            expect(widget.getDynamicColors({ id: 'ctx', type: 'context-bar' }, makeContext(49000, 100000), DEFAULT_SETTINGS)).toBeNull();
+        });
+
+        it('returns orange at 50%', () => {
+            const widget = new ContextBarWidget();
+            const result = widget.getDynamicColors({ id: 'ctx', type: 'context-bar' }, makeContext(50000, 100000), DEFAULT_SETTINGS);
+            expect(result).not.toBeNull();
+            expect(result?.color).toContain('214');
+            expect(result?.backgroundColor).toBeUndefined();
+        });
+
+        it('returns red fg only between 60–69%', () => {
+            const widget = new ContextBarWidget();
+            const result = widget.getDynamicColors({ id: 'ctx', type: 'context-bar' }, makeContext(65000, 100000), DEFAULT_SETTINGS);
+            expect(result).not.toBeNull();
+            expect(result?.color).toContain('196');
+            expect(result?.backgroundColor).toBeUndefined();
+        });
+
+        it('returns red bg with white text at 70%+', () => {
+            const widget = new ContextBarWidget();
+            const result = widget.getDynamicColors({ id: 'ctx', type: 'context-bar' }, makeContext(70000, 100000), DEFAULT_SETTINGS);
+            expect(result).not.toBeNull();
+            expect(result?.backgroundColor).toContain('196');
+            expect(result?.color).toBe('white');
+        });
+
+        it('returns null in preview mode', () => {
+            const widget = new ContextBarWidget();
+            const result = widget.getDynamicColors(
+                { id: 'ctx', type: 'context-bar' },
+                { ...makeContext(80000, 100000), isPreview: true },
+                DEFAULT_SETTINGS
+            );
+            expect(result).toBeNull();
+        });
+    });
 });
