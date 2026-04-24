@@ -126,4 +126,23 @@ describe('writeStaticFiles', () => {
         await writeStaticFiles(srcBundle, home);
         expect(existsSync(path.join(home, '.config', 'ccstatusline'))).toBe(true);
     });
+
+    it('atomically replaces an existing static bundle (no temp files left behind)', async () => {
+        // First deploy
+        await writeStaticFiles(srcBundle, home);
+        const target = path.join(home, '.config', 'ccstatusline', 'ccstatusline.js');
+        const firstContent = readFileSync(target, 'utf-8');
+        expect(firstContent).toContain('console.log("hi")');
+
+        // Second deploy with different source content
+        const { writeFileSync: wf } = await import('fs');
+        wf(srcBundle, '#!/usr/bin/env node\nconsole.log("v2")\n');
+        await writeStaticFiles(srcBundle, home);
+        expect(readFileSync(target, 'utf-8')).toContain('console.log("v2")');
+
+        // Static dir should contain exactly one file + package.json, no leftover temp
+        const { readdirSync } = await import('fs');
+        const entries = readdirSync(path.join(home, '.config', 'ccstatusline'));
+        expect(entries.sort()).toEqual(['ccstatusline.js', 'package.json']);
+    });
 });

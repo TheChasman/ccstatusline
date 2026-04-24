@@ -40,8 +40,25 @@ export function isSourceMode(cwd: string = process.cwd()): boolean {
 export async function writeStaticFiles(sourceBundle: string, homeDir: string = os.homedir()): Promise<void> {
     const paths = resolvePaths(homeDir);
     await fsp.mkdir(paths.staticDir, { recursive: true });
-    await fsp.copyFile(sourceBundle, paths.staticJs);
-    await fsp.chmod(paths.staticJs, 0o755);
+
+    // Atomic write: copy to temp, chmod temp, then rename temp to final path.
+    // This ensures the previous file is never touched until a new one is successfully
+    // written and ready to replace it.
+    const tmpPath = `${paths.staticJs}.tmp-${process.pid}-${Date.now()}`;
+    try {
+        await fsp.copyFile(sourceBundle, tmpPath);
+        await fsp.chmod(tmpPath, 0o755);
+        await fsp.rename(tmpPath, paths.staticJs);
+    } catch (err) {
+        // Clean up temp file on failure; ignore cleanup errors.
+        try {
+            await fsp.unlink(tmpPath);
+        } catch {
+            // swallow
+        }
+        throw err;
+    }
+
     if (!fs.existsSync(paths.staticPkg)) {
         await fsp.writeFile(paths.staticPkg, JSON.stringify({ type: 'module' }) + '\n', 'utf-8');
     }
