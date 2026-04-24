@@ -51,10 +51,20 @@ describe('GitChangesWidget', () => {
         expect(render({ isPreview: true })).toBe('(+42,-10)');
     });
 
-    it('should render combined staged and unstaged changes', () => {
-        mockExecSync.mockReturnValueOnce('true\n');
-        mockExecSync.mockReturnValueOnce('1 file changed, 2 insertions(+), 1 deletion(-)');
-        mockExecSync.mockReturnValueOnce('1 file changed, 3 insertions(+), 4 deletions(-)');
+    it('should render cumulative changes for the current branch vs default', () => {
+        mockExecSync.mockImplementation(((cmd: string) => {
+            const sub = cmd.replace(/^git\s+/, '');
+            const table: Record<string, string> = {
+                'rev-parse --is-inside-work-tree': 'true\n',
+                'symbolic-ref --short refs/remotes/origin/HEAD': 'origin/main',
+                'rev-parse --abbrev-ref HEAD': 'feat/x',
+                'merge-base HEAD main': 'abc123',
+                'diff abc123 --shortstat': '4 files changed, 5 insertions(+), 5 deletions(-)'
+            };
+            if (sub in table)
+                return table[sub];
+            throw new Error(`unexpected git call: ${sub}`);
+        }) as unknown as () => never);
 
         expect(render({ cwd: '/tmp/worktree' })).toBe('(+5,-5)');
         expect(mockExecSync.mock.calls[0]?.[1]).toEqual({
@@ -62,22 +72,22 @@ describe('GitChangesWidget', () => {
             stdio: ['pipe', 'pipe', 'ignore'],
             cwd: '/tmp/worktree'
         });
-        expect(mockExecSync.mock.calls[1]?.[1]).toEqual({
-            encoding: 'utf8',
-            stdio: ['pipe', 'pipe', 'ignore'],
-            cwd: '/tmp/worktree'
-        });
-        expect(mockExecSync.mock.calls[2]?.[1]).toEqual({
-            encoding: 'utf8',
-            stdio: ['pipe', 'pipe', 'ignore'],
-            cwd: '/tmp/worktree'
-        });
     });
 
     it('should render zero counts when repo is clean', () => {
-        mockExecSync.mockReturnValueOnce('true\n');
-        mockExecSync.mockReturnValueOnce('');
-        mockExecSync.mockReturnValueOnce('');
+        mockExecSync.mockImplementation(((cmd: string) => {
+            const sub = cmd.replace(/^git\s+/, '');
+            const table: Record<string, string> = {
+                'rev-parse --is-inside-work-tree': 'true\n',
+                'symbolic-ref --short refs/remotes/origin/HEAD': 'origin/main',
+                'rev-parse --abbrev-ref HEAD': 'main',
+                'rev-parse --verify HEAD~1': 'deadbeef',
+                'diff HEAD~1 --shortstat': ''
+            };
+            if (sub in table)
+                return table[sub];
+            throw new Error(`unexpected git call: ${sub}`);
+        }) as unknown as () => never);
 
         expect(render()).toBe('(+0,-0)');
     });

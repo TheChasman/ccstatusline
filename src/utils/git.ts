@@ -72,7 +72,26 @@ function parseDiffShortStat(stat: string): GitChangeCounts {
     };
 }
 
-export function getGitChangeCounts(context: RenderContext): GitChangeCounts {
+function getDefaultBranch(context: RenderContext): string | null {
+    const originHead = runGit('symbolic-ref --short refs/remotes/origin/HEAD', context);
+    if (originHead?.startsWith('origin/')) {
+        return originHead.slice('origin/'.length);
+    }
+    if (runGit('rev-parse --verify main', context)) {
+        return 'main';
+    }
+    if (runGit('rev-parse --verify master', context)) {
+        return 'master';
+    }
+    return null;
+}
+
+function getCurrentBranch(context: RenderContext): string | null {
+    const branch = runGit('rev-parse --abbrev-ref HEAD', context);
+    return branch && branch !== 'HEAD' ? branch : null;
+}
+
+function getUncommittedChangeCounts(context: RenderContext): GitChangeCounts {
     const unstagedStat = runGit('diff --shortstat', context) ?? '';
     const stagedStat = runGit('diff --cached --shortstat', context) ?? '';
     const unstagedCounts = parseDiffShortStat(unstagedStat);
@@ -82,6 +101,39 @@ export function getGitChangeCounts(context: RenderContext): GitChangeCounts {
         insertions: unstagedCounts.insertions + stagedCounts.insertions,
         deletions: unstagedCounts.deletions + stagedCounts.deletions
     };
+}
+
+/**
+ * Returns cumulative insertions/deletions relevant to the current branch state:
+ * - On a feature branch: diff between working tree and the merge-base with the
+ *   default branch (so every commit made on the branch plus any uncommitted
+ *   changes is reflected).
+ * - On the default branch: diff between working tree and HEAD~1 (the last commit
+ *   plus any uncommitted changes).
+ * - Detached HEAD, root commit, or no default branch available: falls back to
+ *   uncommitted changes only (working tree vs HEAD).
+ */
+export function getGitChangeCounts(context: RenderContext): GitChangeCounts {
+    const defaultBranch = getDefaultBranch(context);
+    const currentBranch = getCurrentBranch(context);
+
+    let diffTarget: string | null = null;
+
+    if (defaultBranch && currentBranch && currentBranch !== defaultBranch) {
+        const base = runGit(`merge-base HEAD ${defaultBranch}`, context);
+        if (base) {
+            diffTarget = base;
+        }
+    } else if (runGit('rev-parse --verify HEAD~1', context)) {
+        diffTarget = 'HEAD~1';
+    }
+
+    if (diffTarget) {
+        const stat = runGit(`diff ${diffTarget} --shortstat`, context) ?? '';
+        return parseDiffShortStat(stat);
+    }
+
+    return getUncommittedChangeCounts(context);
 }
 
 export interface GitStatus {
