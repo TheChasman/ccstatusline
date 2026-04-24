@@ -17,12 +17,13 @@ import {
     DEFAULT_SETTINGS,
     type Settings
 } from '../../types/Settings';
+import type { DeployResult } from '../static-deploy';
 
 const MOCK_HOME_DIR = '/tmp/ccstatusline-config-test-home';
 const ORIGINAL_CLAUDE_CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR;
 
 let loadSettings: () => Promise<Settings>;
-let saveSettings: (settings: Settings) => Promise<void>;
+let saveSettings: (settings: Settings) => Promise<DeployResult | null>;
 let initConfigPath: (filePath?: string) => void;
 let consoleErrorSpy: MockInstance<typeof console.error>;
 
@@ -170,5 +171,56 @@ describe('config utilities', () => {
         const saved = JSON.parse(fs.readFileSync(settingsPath, 'utf-8')) as { version?: number };
         expect(saved.version).toBe(CURRENT_VERSION);
         expect(consoleErrorSpy).not.toHaveBeenCalled();
+    });
+});
+
+// Mutable state for the static-deploy mock so tests can control per-call behaviour
+let mockIsSourceMode = false;
+const mockDeployStatic = vi.fn<() => Promise<DeployResult>>();
+
+vi.mock('../static-deploy', () => ({
+    isSourceMode: () => mockIsSourceMode,
+    deployStatic: () => mockDeployStatic()
+}));
+
+describe('saveSettings static deploy integration', () => {
+    beforeEach(() => {
+        // Redirect settings writes to a temp dir — otherwise saveSettings would
+        // clobber the real ~/.config/ccstatusline/settings.json when this test runs.
+        fs.rmSync(MOCK_HOME_DIR, { recursive: true, force: true });
+        process.env.CLAUDE_CONFIG_DIR = getClaudeConfigDir();
+        const { settingsPath } = getSettingsPaths();
+        initConfigPath(settingsPath);
+
+        mockIsSourceMode = false;
+        mockDeployStatic.mockReset();
+    });
+
+    afterEach(() => {
+        fs.rmSync(MOCK_HOME_DIR, { recursive: true, force: true });
+        if (ORIGINAL_CLAUDE_CONFIG_DIR === undefined) {
+            delete process.env.CLAUDE_CONFIG_DIR;
+        } else {
+            process.env.CLAUDE_CONFIG_DIR = ORIGINAL_CLAUDE_CONFIG_DIR;
+        }
+        initConfigPath();
+    });
+
+    it('returns null when not in source mode', async () => {
+        mockIsSourceMode = false;
+        const { saveSettings: save } = await import('../config');
+        const result = await save({ lines: [[]] } as unknown as Settings);
+        expect(result).toBeNull();
+        expect(mockDeployStatic).not.toHaveBeenCalled();
+    });
+
+    it('invokes deployStatic and returns its result when in source mode', async () => {
+        const deployResult: DeployResult = { deployed: true, staticPath: '/tmp/fake.js' };
+        mockIsSourceMode = true;
+        mockDeployStatic.mockResolvedValue(deployResult);
+        const { saveSettings: save } = await import('../config');
+        const result = await save({ lines: [[]] } as unknown as Settings);
+        expect(mockDeployStatic).toHaveBeenCalledOnce();
+        expect(result).toEqual(deployResult);
     });
 });

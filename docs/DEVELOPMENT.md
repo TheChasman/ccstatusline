@@ -59,6 +59,12 @@ If you use a custom Claude config location, set `CLAUDE_CONFIG_DIR` and ccstatus
 - Build target is Node.js 14+ (`dist/ccstatusline.js`)
 - During install, `ink@6.2.0` is patched to fix backspace handling on macOS terminals
 
+## Static deploy on save
+
+When you run the TUI from this repo and hit Exit & Save (or Ctrl+S), the build is re-run and the resulting bundle is copied to `~/.config/ccstatusline/ccstatusline.js`. The global `ccstatusline` command is kept pointing there via `~/.bun/bin/ccstatusline` — so renaming or moving this project folder no longer breaks the command.
+
+The auto-deploy only fires when the TUI detects it is running from source (package.json with name `ccstatusline` plus `src/ccstatusline.ts` present). Installed copies (`npx`/`bunx`) are unaffected. Deploy errors surface as a red flash on Ctrl+S save, or as a `Deploy failed:` stderr line on Exit & Save.
+
 ## API Documentation
 
 Complete API documentation is generated using TypeDoc and includes detailed information about:
