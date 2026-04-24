@@ -263,4 +263,29 @@ describe('deployStatic', () => {
         expect(result.deployed).toBe(false);
         expect(result.error).toContain('dist/ccstatusline.js not found');
     });
+
+    it('returns deployed:true with symlink error when ensureBunBinSymlink throws', async () => {
+        // Pre-create ~/.bun/bin and place a DIRECTORY at the symlink path
+        // so that fsp.unlink fails with EISDIR (cannot remove directory).
+        mkdirSync(path.join(home, '.bun', 'bin'), { recursive: true });
+        mkdirSync(path.join(home, '.bun', 'bin', 'ccstatusline'));
+
+        const result = await deployStatic({
+            cwd: project,
+            homeDir: home,
+            runBuild: (cwd) => {
+                mkdirSync(path.join(cwd, 'dist'), { recursive: true });
+                writeFileSync(path.join(cwd, 'dist', 'ccstatusline.js'), '#!/usr/bin/env node\n// built\n');
+                return Promise.resolve();
+            }
+        });
+
+        expect(result.deployed).toBe(true);
+        const staticPath = path.join(home, '.config', 'ccstatusline', 'ccstatusline.js');
+        expect(result.staticPath).toBe(staticPath);
+        expect(result.symlinkUpdated).toBe(false);
+        expect(result.error).toContain('symlink update failed');
+        // Confirm the bundle file really is at the static path despite the symlink error.
+        expect(existsSync(staticPath)).toBe(true);
+    });
 });

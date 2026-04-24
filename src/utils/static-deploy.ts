@@ -138,6 +138,13 @@ export async function deployStatic(options: DeployOptions = {}): Promise<DeployR
 
     try {
         await writeStaticFiles(bundle, homeDir);
+    } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return { deployed: false, error: msg };
+    }
+
+    // Bundle is now staged at paths.staticJs. Symlink failure is a secondary error.
+    try {
         const linkResult = await ensureBunBinSymlink(homeDir);
         return {
             deployed: true,
@@ -146,6 +153,11 @@ export async function deployStatic(options: DeployOptions = {}): Promise<DeployR
         };
     } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        return { deployed: false, error: msg };
+        return {
+            deployed: true,
+            staticPath: paths.staticJs,
+            symlinkUpdated: false,
+            error: `bundle deployed but symlink update failed: ${msg}`
+        };
     }
 }
