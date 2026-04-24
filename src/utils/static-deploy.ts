@@ -1,3 +1,4 @@
+import { execFileSync } from 'child_process';
 import * as fs from 'fs';
 import * as fsp from 'fs/promises';
 import os from 'os';
@@ -96,4 +97,55 @@ export async function ensureBunBinSymlink(homeDir: string = os.homedir()): Promi
     }
     await fsp.symlink(paths.staticJs, paths.bunBinLink);
     return { updated: true };
+}
+
+export interface DeployResult {
+    deployed: boolean;
+    staticPath?: string;
+    symlinkUpdated?: boolean;
+    error?: string;
+}
+
+export interface DeployOptions {
+    cwd?: string;
+    homeDir?: string;
+    runBuild?: (cwd: string) => Promise<void>;
+}
+
+function defaultRunBuild(cwd: string): Promise<void> {
+    return Promise.resolve().then(() => {
+        execFileSync('bun', ['run', 'build'], { cwd, stdio: 'pipe' });
+    });
+}
+
+export async function deployStatic(options: DeployOptions = {}): Promise<DeployResult> {
+    const cwd = options.cwd ?? process.cwd();
+    const homeDir = options.homeDir ?? os.homedir();
+    const runBuild = options.runBuild ?? defaultRunBuild;
+    const paths = resolvePaths(homeDir);
+
+    try {
+        await runBuild(cwd);
+    } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return { deployed: false, error: msg };
+    }
+
+    const bundle = path.join(cwd, 'dist', 'ccstatusline.js');
+    if (!fs.existsSync(bundle)) {
+        return { deployed: false, error: `dist/ccstatusline.js not found after build (looked in ${bundle})` };
+    }
+
+    try {
+        await writeStaticFiles(bundle, homeDir);
+        const linkResult = await ensureBunBinSymlink(homeDir);
+        return {
+            deployed: true,
+            staticPath: paths.staticJs,
+            symlinkUpdated: linkResult.updated
+        };
+    } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return { deployed: false, error: msg };
+    }
 }

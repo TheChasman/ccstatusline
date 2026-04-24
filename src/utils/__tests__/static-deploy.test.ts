@@ -21,10 +21,12 @@ import {
 } from 'vitest';
 
 import {
+    deployStatic,
     ensureBunBinSymlink,
     isSourceMode,
     resolvePaths,
-    writeStaticFiles
+    writeStaticFiles,
+    type DeployResult
 } from '../static-deploy';
 
 describe('resolvePaths', () => {
@@ -205,5 +207,60 @@ describe('ensureBunBinSymlink', () => {
         expect(result).toEqual({ updated: true });
         expect(lstatSync(linkPath).isSymbolicLink()).toBe(true);
         expect(readlinkSync(linkPath)).toBe(target);
+    });
+});
+
+describe('deployStatic', () => {
+    let project: string;
+    let home: string;
+
+    beforeEach(() => {
+        project = mkdtempSync(path.join(tmpdir(), 'ccsl-deploy-'));
+        home = mkdtempSync(path.join(tmpdir(), 'ccsl-deploy-home-'));
+        writeFileSync(path.join(project, 'package.json'), JSON.stringify({ name: 'ccstatusline' }));
+        mkdirSync(path.join(project, 'src'));
+        writeFileSync(path.join(project, 'src', 'ccstatusline.ts'), '// entry');
+    });
+
+    afterEach(() => {
+        rmSync(project, { recursive: true, force: true });
+        rmSync(home, { recursive: true, force: true });
+    });
+
+    it('returns { deployed: true } and writes all files on success', async () => {
+        const result: DeployResult = await deployStatic({
+            cwd: project,
+            homeDir: home,
+            runBuild: (cwd) => {
+                mkdirSync(path.join(cwd, 'dist'), { recursive: true });
+                writeFileSync(path.join(cwd, 'dist', 'ccstatusline.js'), '#!/usr/bin/env node\n// built\n');
+                return Promise.resolve();
+            }
+        });
+        expect(result.deployed).toBe(true);
+        expect(result.error).toBeUndefined();
+        expect(existsSync(path.join(home, '.config', 'ccstatusline', 'ccstatusline.js'))).toBe(true);
+        expect(result.staticPath).toBe(path.join(home, '.config', 'ccstatusline', 'ccstatusline.js'));
+    });
+
+    it('returns { deployed: false, error } when the build throws', async () => {
+        const result = await deployStatic({
+            cwd: project,
+            homeDir: home,
+            runBuild: () => Promise.reject(new Error('bun build failed: syntax error'))
+        });
+        expect(result.deployed).toBe(false);
+        expect(result.error).toContain('bun build failed: syntax error');
+        expect(existsSync(path.join(home, '.config', 'ccstatusline', 'ccstatusline.js'))).toBe(false);
+    });
+
+    it('returns { deployed: false, error } when dist/ccstatusline.js is missing after build', async () => {
+        const result = await deployStatic({
+            cwd: project,
+            homeDir: home,
+            runBuild: () => Promise.resolve()
+        });
+        expect(result.deployed).toBe(false);
+        expect(result.error).toContain('dist/ccstatusline.js not found');
     });
 });
