@@ -1,7 +1,10 @@
 import {
+    existsSync,
     mkdirSync,
     mkdtempSync,
+    readFileSync,
     rmSync,
+    statSync,
     writeFileSync
 } from 'fs';
 import { tmpdir } from 'os';
@@ -16,7 +19,8 @@ import {
 
 import {
     isSourceMode,
-    resolvePaths
+    resolvePaths,
+    writeStaticFiles
 } from '../static-deploy';
 
 describe('resolvePaths', () => {
@@ -70,5 +74,56 @@ describe('isSourceMode', () => {
         mkdirSync(path.join(dir, 'src'));
         writeFileSync(path.join(dir, 'src', 'ccstatusline.ts'), '// entry');
         expect(isSourceMode(dir)).toBe(false);
+    });
+});
+
+describe('writeStaticFiles', () => {
+    let home: string;
+    let srcBundle: string;
+
+    beforeEach(() => {
+        home = mkdtempSync(path.join(tmpdir(), 'ccsl-home-'));
+        const project = mkdtempSync(path.join(tmpdir(), 'ccsl-proj-'));
+        srcBundle = path.join(project, 'dist', 'ccstatusline.js');
+        mkdirSync(path.dirname(srcBundle), { recursive: true });
+        writeFileSync(srcBundle, '#!/usr/bin/env node\nconsole.log("hi")\n');
+    });
+
+    afterEach(() => {
+        rmSync(home, { recursive: true, force: true });
+    });
+
+    it('copies the bundle to the static path', async () => {
+        await writeStaticFiles(srcBundle, home);
+        const target = path.join(home, '.config', 'ccstatusline', 'ccstatusline.js');
+        expect(existsSync(target)).toBe(true);
+        expect(readFileSync(target, 'utf-8')).toContain('console.log("hi")');
+    });
+
+    it('chmods the copy to 0o755', async () => {
+        await writeStaticFiles(srcBundle, home);
+        const target = path.join(home, '.config', 'ccstatusline', 'ccstatusline.js');
+        const mode = statSync(target).mode & 0o777;
+        expect(mode).toBe(0o755);
+    });
+
+    it('writes package.json with {"type":"module"} if missing', async () => {
+        await writeStaticFiles(srcBundle, home);
+        const pkg = path.join(home, '.config', 'ccstatusline', 'package.json');
+        expect(existsSync(pkg)).toBe(true);
+        expect(JSON.parse(readFileSync(pkg, 'utf-8'))).toEqual({ type: 'module' });
+    });
+
+    it('does not overwrite an existing package.json', async () => {
+        mkdirSync(path.join(home, '.config', 'ccstatusline'), { recursive: true });
+        const pkg = path.join(home, '.config', 'ccstatusline', 'package.json');
+        writeFileSync(pkg, JSON.stringify({ type: 'module', custom: true }));
+        await writeStaticFiles(srcBundle, home);
+        expect(JSON.parse(readFileSync(pkg, 'utf-8'))).toEqual({ type: 'module', custom: true });
+    });
+
+    it('creates the static directory if it does not exist', async () => {
+        await writeStaticFiles(srcBundle, home);
+        expect(existsSync(path.join(home, '.config', 'ccstatusline'))).toBe(true);
     });
 });

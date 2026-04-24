@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import * as fsp from 'fs/promises';
 import os from 'os';
 import path from 'path';
 
@@ -33,5 +34,15 @@ export function isSourceMode(cwd: string = process.cwd()): boolean {
         return parsed.name === 'ccstatusline';
     } catch {
         return false;
+    }
+}
+
+export async function writeStaticFiles(sourceBundle: string, homeDir: string = os.homedir()): Promise<void> {
+    const paths = resolvePaths(homeDir);
+    await fsp.mkdir(paths.staticDir, { recursive: true });
+    await fsp.copyFile(sourceBundle, paths.staticJs);
+    await fsp.chmod(paths.staticJs, 0o755);
+    if (!fs.existsSync(paths.staticPkg)) {
+        await fsp.writeFile(paths.staticPkg, JSON.stringify({ type: 'module' }) + '\n', 'utf-8');
     }
 }
