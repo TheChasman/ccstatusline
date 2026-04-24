@@ -13,6 +13,7 @@ import {
     migrateConfig,
     needsMigration
 } from './migrations';
+import type { DeployResult } from './static-deploy';
 
 // Use fs.promises directly (always available in modern Node.js)
 const readFile = fs.promises.readFile;
@@ -148,7 +149,7 @@ export async function loadSettings(): Promise<Settings> {
     }
 }
 
-export async function saveSettings(settings: Settings): Promise<void> {
+export async function saveSettings(settings: Settings): Promise<DeployResult | null> {
     const paths = getSettingsPaths();
 
     // Always include version when saving
@@ -164,4 +165,12 @@ export async function saveSettings(settings: Settings): Promise<void> {
         const { syncWidgetHooks } = await import('./hooks');
         await syncWidgetHooks(settings);
     } catch { /* ignore hook sync failures */ }
+
+    // Deploy the built bundle to a path-independent static location when
+    // running from the ccstatusline source tree. Returns null otherwise.
+    const { isSourceMode, deployStatic } = await import('./static-deploy');
+    if (!isSourceMode()) {
+        return null;
+    }
+    return await deployStatic();
 }
