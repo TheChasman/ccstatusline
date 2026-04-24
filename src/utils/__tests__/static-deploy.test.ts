@@ -1,10 +1,13 @@
 import {
     existsSync,
+    lstatSync,
     mkdirSync,
     mkdtempSync,
     readFileSync,
+    readlinkSync,
     rmSync,
     statSync,
+    symlinkSync,
     writeFileSync
 } from 'fs';
 import { tmpdir } from 'os';
@@ -18,6 +21,7 @@ import {
 } from 'vitest';
 
 import {
+    ensureBunBinSymlink,
     isSourceMode,
     resolvePaths,
     writeStaticFiles
@@ -144,5 +148,62 @@ describe('writeStaticFiles', () => {
         const { readdirSync } = await import('fs');
         const entries = readdirSync(path.join(home, '.config', 'ccstatusline'));
         expect(entries.sort()).toEqual(['ccstatusline.js', 'package.json']);
+    });
+});
+
+describe('ensureBunBinSymlink', () => {
+    let home: string;
+    let target: string;
+
+    beforeEach(() => {
+        home = mkdtempSync(path.join(tmpdir(), 'ccsl-link-'));
+        target = path.join(home, '.config', 'ccstatusline', 'ccstatusline.js');
+        mkdirSync(path.dirname(target), { recursive: true });
+        writeFileSync(target, '// target');
+    });
+
+    afterEach(() => {
+        rmSync(home, { recursive: true, force: true });
+    });
+
+    it('returns { updated: false } when ~/.bun/bin does not exist', async () => {
+        const result = await ensureBunBinSymlink(home);
+        expect(result).toEqual({ updated: false, reason: 'no-bun-bin' });
+    });
+
+    it('creates the symlink when ~/.bun/bin exists and link is absent', async () => {
+        mkdirSync(path.join(home, '.bun', 'bin'), { recursive: true });
+        const result = await ensureBunBinSymlink(home);
+        const linkPath = path.join(home, '.bun', 'bin', 'ccstatusline');
+        expect(result).toEqual({ updated: true });
+        expect(lstatSync(linkPath).isSymbolicLink()).toBe(true);
+        expect(readlinkSync(linkPath)).toBe(target);
+    });
+
+    it('replaces an existing symlink pointing elsewhere', async () => {
+        mkdirSync(path.join(home, '.bun', 'bin'), { recursive: true });
+        const linkPath = path.join(home, '.bun', 'bin', 'ccstatusline');
+        symlinkSync('/some/other/path', linkPath);
+        const result = await ensureBunBinSymlink(home);
+        expect(result).toEqual({ updated: true });
+        expect(readlinkSync(linkPath)).toBe(target);
+    });
+
+    it('is a no-op when the symlink already points to the target', async () => {
+        mkdirSync(path.join(home, '.bun', 'bin'), { recursive: true });
+        const linkPath = path.join(home, '.bun', 'bin', 'ccstatusline');
+        symlinkSync(target, linkPath);
+        const result = await ensureBunBinSymlink(home);
+        expect(result).toEqual({ updated: false, reason: 'already-correct' });
+    });
+
+    it('replaces a regular file at the link path', async () => {
+        mkdirSync(path.join(home, '.bun', 'bin'), { recursive: true });
+        const linkPath = path.join(home, '.bun', 'bin', 'ccstatusline');
+        writeFileSync(linkPath, 'not a symlink');
+        const result = await ensureBunBinSymlink(home);
+        expect(result).toEqual({ updated: true });
+        expect(lstatSync(linkPath).isSymbolicLink()).toBe(true);
+        expect(readlinkSync(linkPath)).toBe(target);
     });
 });

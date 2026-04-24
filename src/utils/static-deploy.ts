@@ -63,3 +63,37 @@ export async function writeStaticFiles(sourceBundle: string, homeDir: string = o
         await fsp.writeFile(paths.staticPkg, JSON.stringify({ type: 'module' }) + '\n', 'utf-8');
     }
 }
+
+export interface SymlinkResult {
+    updated: boolean;
+    reason?: 'no-bun-bin' | 'already-correct';
+}
+
+export async function ensureBunBinSymlink(homeDir: string = os.homedir()): Promise<SymlinkResult> {
+    const paths = resolvePaths(homeDir);
+    const bunBinDir = path.dirname(paths.bunBinLink);
+
+    if (!fs.existsSync(bunBinDir)) {
+        return { updated: false, reason: 'no-bun-bin' };
+    }
+
+    let existing: fs.Stats | null = null;
+    try {
+        existing = fs.lstatSync(paths.bunBinLink);
+    } catch {
+        // Link/file doesn't exist, we'll create it
+    }
+
+    if (existing?.isSymbolicLink()) {
+        const current = fs.readlinkSync(paths.bunBinLink);
+        if (current === paths.staticJs) {
+            return { updated: false, reason: 'already-correct' };
+        }
+    }
+
+    if (existing) {
+        await fsp.unlink(paths.bunBinLink);
+    }
+    await fsp.symlink(paths.staticJs, paths.bunBinLink);
+    return { updated: true };
+}
