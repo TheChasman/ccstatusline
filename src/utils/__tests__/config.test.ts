@@ -185,8 +185,25 @@ vi.mock('../static-deploy', () => ({
 
 describe('saveSettings static deploy integration', () => {
     beforeEach(() => {
+        // Redirect settings writes to a temp dir — otherwise saveSettings would
+        // clobber the real ~/.config/ccstatusline/settings.json when this test runs.
+        fs.rmSync(MOCK_HOME_DIR, { recursive: true, force: true });
+        process.env.CLAUDE_CONFIG_DIR = getClaudeConfigDir();
+        const { settingsPath } = getSettingsPaths();
+        initConfigPath(settingsPath);
+
         mockIsSourceMode = false;
         mockDeployStatic.mockReset();
+    });
+
+    afterEach(() => {
+        fs.rmSync(MOCK_HOME_DIR, { recursive: true, force: true });
+        if (ORIGINAL_CLAUDE_CONFIG_DIR === undefined) {
+            delete process.env.CLAUDE_CONFIG_DIR;
+        } else {
+            process.env.CLAUDE_CONFIG_DIR = ORIGINAL_CLAUDE_CONFIG_DIR;
+        }
+        initConfigPath();
     });
 
     it('returns null when not in source mode', async () => {
