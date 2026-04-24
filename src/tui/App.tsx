@@ -169,16 +169,34 @@ export const App: React.FC = () => {
         // Global save shortcut
         if (key.ctrl && input === 's' && settings) {
             void (async () => {
-                await saveSettings(settings);
+                const result = await saveSettings(settings);
                 setOriginalSettings(cloneSettings(settings));
                 setHasChanges(false);
-                setFlashMessage({
-                    text: '✓ Configuration saved',
-                    color: 'green'
-                });
+                applyDeployFlash(result, '✓ Configuration saved');
             })();
         }
     });
+
+    const applyDeployFlash = (
+        result: Awaited<ReturnType<typeof saveSettings>>,
+        baseMessage: string
+    ) => {
+        if (!result) {
+            setFlashMessage({ text: baseMessage, color: 'green' });
+            return;
+        }
+        if (result.error) {
+            setFlashMessage({
+                text: `${baseMessage} — deploy failed: ${result.error}`,
+                color: 'red'
+            });
+            return;
+        }
+        setFlashMessage({
+            text: `${baseMessage} — deployed to ~/.config/ccstatusline/ccstatusline.js`,
+            color: 'green'
+        });
+    };
 
     const handleInstallSelection = useCallback((command: string, displayName: string, useBunx: boolean) => {
         void getExistingStatusLine().then((existing) => {
@@ -290,12 +308,17 @@ export const App: React.FC = () => {
                 });
                 setScreen('confirm');
                 break;
-            case 'save':
-                await saveSettings(settings);
-                setOriginalSettings(cloneSettings(settings)); // Update original after save
+            case 'save': {
+                const result = await saveSettings(settings);
+                setOriginalSettings(cloneSettings(settings));
                 setHasChanges(false);
+                if (result?.error) {
+                    // Surface the error before exiting so the user sees it in their terminal.
+                    console.error(`Deploy failed: ${result.error}`);
+                }
                 exit();
                 break;
+            }
             case 'exit':
                 exit();
                 break;
