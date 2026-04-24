@@ -141,33 +141,98 @@ describe('git utils', () => {
     });
 
     describe('getGitChangeCounts', () => {
-        it('sums staged and unstaged insertions/deletions', () => {
-            mockExecSync.mockReturnValueOnce('1 file changed, 2 insertions(+), 1 deletion(-)');
-            mockExecSync.mockReturnValueOnce('1 file changed, 3 insertions(+), 4 deletions(-)');
+        /**
+         * Drive the branch-aware counter. Callers set return values keyed by the
+         * git sub-command that getGitChangeCounts issues, in the order it issues them.
+         */
+        function setupGitResponses(responses: Record<string, string | null>) {
+            mockExecSync.mockImplementation(((cmd: string) => {
+                const sub = cmd.replace(/^git\s+/, '');
+                const value = Object.prototype.hasOwnProperty.call(responses, sub)
+                    ? responses[sub]
+                    : null;
+                if (value === null || value === undefined) {
+                    throw new Error(`no response for ${sub}`);
+                }
+                return value;
+            }) as unknown as () => never);
+        }
 
-            expect(getGitChangeCounts({})).toEqual({
-                insertions: 5,
-                deletions: 5
+        it('diffs against merge-base with default branch when on a feature branch', () => {
+            setupGitResponses({
+                'symbolic-ref --short refs/remotes/origin/HEAD': 'origin/main',
+                'rev-parse --abbrev-ref HEAD': 'feat/x',
+                'merge-base HEAD main': 'abc123',
+                'diff abc123 --shortstat': '4 files changed, 42 insertions(+), 9 deletions(-)'
             });
+
+            expect(getGitChangeCounts({})).toEqual({ insertions: 42, deletions: 9 });
         });
 
-        it('handles singular insertion/deletion forms', () => {
-            mockExecSync.mockReturnValueOnce('1 file changed, 1 insertion(+), 1 deletion(-)');
-            mockExecSync.mockReturnValueOnce('');
-
-            expect(getGitChangeCounts({})).toEqual({
-                insertions: 1,
-                deletions: 1
+        it('diffs against HEAD~1 when on the default branch', () => {
+            setupGitResponses({
+                'symbolic-ref --short refs/remotes/origin/HEAD': 'origin/main',
+                'rev-parse --abbrev-ref HEAD': 'main',
+                'rev-parse --verify HEAD~1': 'deadbeef',
+                'diff HEAD~1 --shortstat': '1 file changed, 3 insertions(+), 1 deletion(-)'
             });
+
+            expect(getGitChangeCounts({})).toEqual({ insertions: 3, deletions: 1 });
         });
 
-        it('returns zero counts when git diff commands fail', () => {
+        it('falls back to main when origin/HEAD is unset', () => {
+            setupGitResponses({
+                'symbolic-ref --short refs/remotes/origin/HEAD': '',
+                'rev-parse --verify main': 'mainsha',
+                'rev-parse --abbrev-ref HEAD': 'topic',
+                'merge-base HEAD main': 'basesha',
+                'diff basesha --shortstat': '1 file changed, 5 insertions(+)'
+            });
+
+            expect(getGitChangeCounts({})).toEqual({ insertions: 5, deletions: 0 });
+        });
+
+        it('falls back to master when main is unavailable', () => {
+            setupGitResponses({
+                'symbolic-ref --short refs/remotes/origin/HEAD': '',
+                'rev-parse --verify main': '',
+                'rev-parse --verify master': 'mastersha',
+                'rev-parse --abbrev-ref HEAD': 'topic',
+                'merge-base HEAD master': 'basesha',
+                'diff basesha --shortstat': '1 file changed, 2 deletions(-)'
+            });
+
+            expect(getGitChangeCounts({})).toEqual({ insertions: 0, deletions: 2 });
+        });
+
+        it('falls back to uncommitted diff when on root commit of default branch', () => {
+            setupGitResponses({
+                'symbolic-ref --short refs/remotes/origin/HEAD': 'origin/main',
+                'rev-parse --abbrev-ref HEAD': 'main',
+                'rev-parse --verify HEAD~1': '',
+                'diff --shortstat': '1 file changed, 7 insertions(+)',
+                'diff --cached --shortstat': '1 file changed, 2 deletions(-)'
+            });
+
+            expect(getGitChangeCounts({})).toEqual({ insertions: 7, deletions: 2 });
+        });
+
+        it('falls back to uncommitted diff when HEAD is detached', () => {
+            setupGitResponses({
+                'symbolic-ref --short refs/remotes/origin/HEAD': 'origin/main',
+                'rev-parse --abbrev-ref HEAD': 'HEAD',
+                'rev-parse --verify HEAD~1': '',
+                'diff --shortstat': '',
+                'diff --cached --shortstat': ''
+            });
+
+            expect(getGitChangeCounts({})).toEqual({ insertions: 0, deletions: 0 });
+        });
+
+        it('returns zero counts when git commands fail outright', () => {
             mockExecSync.mockImplementation(() => { throw new Error('git failed'); });
 
-            expect(getGitChangeCounts({})).toEqual({
-                insertions: 0,
-                deletions: 0
-            });
+            expect(getGitChangeCounts({})).toEqual({ insertions: 0, deletions: 0 });
         });
     });
 
