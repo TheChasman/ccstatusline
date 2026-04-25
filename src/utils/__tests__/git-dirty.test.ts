@@ -7,7 +7,10 @@ import {
     vi
 } from 'vitest';
 
-import { clearGitCache, runGitInDir } from '../git';
+import {
+    clearGitCache,
+    runGitInDir
+} from '../git';
 
 vi.mock('child_process', () => ({ execSync: vi.fn() }));
 
