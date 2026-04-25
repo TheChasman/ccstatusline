@@ -76,6 +76,13 @@ describe('HostnameWidget', () => {
         expect(widget.render(item, context, DEFAULT_SETTINGS)).toBe('Host: macbook');
     });
 
+    it('falls back to os.hostname when scutil returns empty string', () => {
+        mockPlatform.mockReturnValue('darwin');
+        mockExecSync.mockReturnValue('\n');
+        mockHostname.mockReturnValue('macbook.local');
+        expect(widget.render(item, context, DEFAULT_SETTINGS)).toBe('Host: macbook');
+    });
+
     it('has correct metadata', () => {
         expect(widget.getDefaultColor()).toBe('gray');
         expect(widget.getDisplayName()).toBe('Hostname');
