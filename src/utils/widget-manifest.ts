@@ -32,6 +32,7 @@ export const WIDGET_MANIFEST: WidgetManifestEntry[] = [
     { type: 'git-untracked', create: () => new widgets.GitUntrackedWidget() },
     { type: 'git-ahead-behind', create: () => new widgets.GitAheadBehindWidget() },
     { type: 'git-conflicts', create: () => new widgets.GitConflictsWidget() },
+    { type: 'git-dirty', create: () => new widgets.GitDirtyWidget() },
     { type: 'git-sha', create: () => new widgets.GitShaWidget() },
     { type: 'git-origin-owner', create: () => new widgets.GitOriginOwnerWidget() },
     { type: 'git-origin-repo', create: () => new widgets.GitOriginRepoWidget() },
