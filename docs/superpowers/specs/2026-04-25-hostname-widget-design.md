@@ -11,7 +11,7 @@ Add a `Hostname` widget to the Environment category that displays the friendly m
 | Type | `hostname` |
 | Display name | `Hostname` |
 | Category | `Environment` |
-| Default colour | `cyan` |
+| Default colour | `grey` |
 | Supports raw value | yes |
 | Supports colours | yes |
 
