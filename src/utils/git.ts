@@ -52,7 +52,7 @@ export function runGit(command: string, context: RenderContext): string | null {
 }
 
 export function runGitInDir(command: string, dir: string): string | null {
-    const cacheKey = `${command}|${dir}`;
+    const cacheKey = `dir:${dir}|${command}`;
 
     if (gitCommandCache.has(cacheKey)) {
         return gitCommandCache.get(cacheKey) ?? null;
