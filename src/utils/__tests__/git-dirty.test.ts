@@ -71,7 +71,6 @@ describe('getWorktreePaths', () => {
 
     it('returns paths parsed from worktree list --porcelain output', () => {
         mockExecSync.mockImplementation(((cmd: string) => {
-            if (cmd.includes('rev-parse --is-inside-work-tree')) return 'true\n';
             if (cmd.includes('worktree list --porcelain')) {
                 return [
                     'worktree /repo/main',
@@ -92,7 +91,6 @@ describe('getWorktreePaths', () => {
 
     it('returns a single path for a repo with no extra worktrees', () => {
         mockExecSync.mockImplementation(((cmd: string) => {
-            if (cmd.includes('rev-parse --is-inside-work-tree')) return 'true\n';
             if (cmd.includes('worktree list --porcelain')) {
                 return 'worktree /repo\nHEAD abc\nbranch refs/heads/main\n';
             }
