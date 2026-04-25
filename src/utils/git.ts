@@ -120,6 +120,18 @@ export function getTotalAheadBehind(context: RenderContext): TotalAheadBehind {
     return { ahead, behind };
 }
 
+export function getDirtyWorktreeCount(context: RenderContext): number {
+    const paths = getWorktreePaths(context);
+    let count = 0;
+    for (const path of paths) {
+        const status = runGitInDir('--no-optional-locks status --porcelain', path);
+        if (status) {
+            count++;
+        }
+    }
+    return count;
+}
+
 /**
  * Clear git command cache - for testing only
  */

@@ -9,6 +9,7 @@ import {
 
 import {
     clearGitCache,
+    getDirtyWorktreeCount,
     getTotalAheadBehind,
     getWorktreePaths,
     runGitInDir
@@ -148,5 +149,63 @@ describe('getTotalAheadBehind', () => {
     it('returns zeros when not in a git repo', () => {
         mockExecSync.mockImplementation(() => { throw new Error('no git'); });
         expect(getTotalAheadBehind(context)).toEqual({ ahead: 0, behind: 0 });
+    });
+});
+
+describe('getDirtyWorktreeCount', () => {
+    const context = { data: { cwd: '/repo' } };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        clearGitCache();
+    });
+
+    it('counts worktrees with uncommitted changes', () => {
+        mockExecSync.mockImplementation(((cmd: string, opts: { cwd?: string }) => {
+            if (cmd.includes('worktree list --porcelain')) {
+                return [
+                    'worktree /repo/main',
+                    'HEAD abc',
+                    'branch refs/heads/main',
+                    '',
+                    'worktree /repo/feat',
+                    'HEAD def',
+                    'branch refs/heads/feat',
+                    '',
+                    'worktree /repo/fix',
+                    'HEAD ghi',
+                    'branch refs/heads/fix',
+                    ''
+                ].join('\n');
+            }
+            if (cmd.includes('status --porcelain')) {
+                if (opts.cwd === '/repo/main')
+                    return '';
+                if (opts.cwd === '/repo/feat')
+                    return ' M src/file.ts\n';
+                if (opts.cwd === '/repo/fix')
+                    return '?? new.ts\n';
+            }
+            throw new Error(`unexpected cmd=${cmd} cwd=${opts.cwd}`);
+        }) as unknown as () => never);
+
+        expect(getDirtyWorktreeCount(context)).toBe(2);
+    });
+
+    it('returns 0 when all worktrees are clean', () => {
+        mockExecSync.mockImplementation(((cmd: string) => {
+            if (cmd.includes('worktree list --porcelain'))
+                return 'worktree /repo/main\nHEAD abc\nbranch refs/heads/main\n';
+            if (cmd.includes('status --porcelain'))
+                return '';
+            throw new Error(`unexpected: ${cmd}`);
+        }) as unknown as () => never);
+
+        expect(getDirtyWorktreeCount(context)).toBe(0);
+    });
+
+    it('returns 0 when git is unavailable', () => {
+        mockExecSync.mockImplementation(() => { throw new Error('no git'); });
+        expect(getDirtyWorktreeCount(context)).toBe(0);
     });
 });
