@@ -46,32 +46,32 @@ describe('GitDirtyWidget', () => {
         expect(widget.render(item, context, DEFAULT_SETTINGS)).toBeNull();
     });
 
-    it('returns null when repo is fully clean', () => {
+    it('shows zeros when repo is fully clean', () => {
         mockIsInside.mockReturnValue(true);
         mockAheadBehind.mockReturnValue({ ahead: 0, behind: 0 });
         mockDirty.mockReturnValue(0);
-        expect(widget.render(item, context, DEFAULT_SETTINGS)).toBeNull();
+        expect(widget.render(item, context, DEFAULT_SETTINGS)).toBe('↑0↓0●0');
     });
 
-    it('shows only unpushed commits when only ahead', () => {
+    it('shows all parts when only ahead', () => {
         mockIsInside.mockReturnValue(true);
         mockAheadBehind.mockReturnValue({ ahead: 3, behind: 0 });
         mockDirty.mockReturnValue(0);
-        expect(widget.render(item, context, DEFAULT_SETTINGS)).toBe('↑3');
+        expect(widget.render(item, context, DEFAULT_SETTINGS)).toBe('↑3↓0●0');
     });
 
-    it('shows only behind count when only behind', () => {
+    it('shows all parts when only behind', () => {
         mockIsInside.mockReturnValue(true);
         mockAheadBehind.mockReturnValue({ ahead: 0, behind: 2 });
         mockDirty.mockReturnValue(0);
-        expect(widget.render(item, context, DEFAULT_SETTINGS)).toBe('↓2');
+        expect(widget.render(item, context, DEFAULT_SETTINGS)).toBe('↑0↓2●0');
     });
 
-    it('shows only dirty count when only worktrees are dirty', () => {
+    it('shows all parts when only worktrees are dirty', () => {
         mockIsInside.mockReturnValue(true);
         mockAheadBehind.mockReturnValue({ ahead: 0, behind: 0 });
         mockDirty.mockReturnValue(1);
-        expect(widget.render(item, context, DEFAULT_SETTINGS)).toBe('●1');
+        expect(widget.render(item, context, DEFAULT_SETTINGS)).toBe('↑0↓0●1');
     });
 
     it('shows all three parts when all are non-zero', () => {

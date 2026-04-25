@@ -42,20 +42,7 @@ export class GitDirtyWidget implements Widget {
         const { ahead, behind } = getTotalAheadBehind(context);
         const dirty = getDirtyWorktreeCount(context);
 
-        if (ahead === 0 && behind === 0 && dirty === 0)
-            return null;
-
-        const parts: string[] = [];
-        if (ahead > 0)
-            parts.push(`↑${ahead}`);
-
-        if (behind > 0)
-            parts.push(`↓${behind}`);
-
-        if (dirty > 0)
-            parts.push(`●${dirty}`);
-
-        return parts.join('');
+        return `↑${ahead}↓${behind}●${dirty}`;
     }
 
     supportsRawValue(): boolean {
