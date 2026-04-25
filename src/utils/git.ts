@@ -74,6 +74,19 @@ export function runGitInDir(command: string, dir: string): string | null {
     }
 }
 
+export function getWorktreePaths(context: RenderContext): string[] {
+    const output = runGit('worktree list --porcelain', context);
+    if (!output) return [];
+
+    const paths: string[] = [];
+    for (const line of output.split('\n')) {
+        if (line.startsWith('worktree ')) {
+            paths.push(line.slice('worktree '.length));
+        }
+    }
+    return paths;
+}
+
 /**
  * Clear git command cache - for testing only
  */

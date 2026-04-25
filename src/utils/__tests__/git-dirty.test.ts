@@ -9,6 +9,7 @@ import {
 
 import {
     clearGitCache,
+    getWorktreePaths,
     runGitInDir
 } from '../git';
 
@@ -57,5 +58,52 @@ describe('runGitInDir', () => {
         runGitInDir('status', '/repo/a');
         runGitInDir('status', '/repo/b');
         expect(execSync).toHaveBeenCalledTimes(2);
+    });
+});
+
+describe('getWorktreePaths', () => {
+    const context = { data: { cwd: '/repo' } };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        clearGitCache();
+    });
+
+    it('returns paths parsed from worktree list --porcelain output', () => {
+        mockExecSync.mockImplementation(((cmd: string) => {
+            if (cmd.includes('rev-parse --is-inside-work-tree')) return 'true\n';
+            if (cmd.includes('worktree list --porcelain')) {
+                return [
+                    'worktree /repo/main',
+                    'HEAD abc123',
+                    'branch refs/heads/main',
+                    '',
+                    'worktree /repo/feat',
+                    'HEAD def456',
+                    'branch refs/heads/feat',
+                    ''
+                ].join('\n');
+            }
+            throw new Error(`unexpected: ${cmd}`);
+        }) as unknown as () => never);
+
+        expect(getWorktreePaths(context)).toEqual(['/repo/main', '/repo/feat']);
+    });
+
+    it('returns a single path for a repo with no extra worktrees', () => {
+        mockExecSync.mockImplementation(((cmd: string) => {
+            if (cmd.includes('rev-parse --is-inside-work-tree')) return 'true\n';
+            if (cmd.includes('worktree list --porcelain')) {
+                return 'worktree /repo\nHEAD abc\nbranch refs/heads/main\n';
+            }
+            throw new Error(`unexpected: ${cmd}`);
+        }) as unknown as () => never);
+
+        expect(getWorktreePaths(context)).toEqual(['/repo']);
+    });
+
+    it('returns empty array when git is unavailable', () => {
+        mockExecSync.mockImplementation(() => { throw new Error('no git'); });
+        expect(getWorktreePaths(context)).toEqual([]);
     });
 });
