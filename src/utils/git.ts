@@ -87,6 +87,34 @@ export function getWorktreePaths(context: RenderContext): string[] {
     return paths;
 }
 
+export interface TotalAheadBehind {
+    ahead: number;
+    behind: number;
+}
+
+export function getTotalAheadBehind(context: RenderContext): TotalAheadBehind {
+    const output = runGit("for-each-ref '--format=%(ahead-behind:push)' refs/heads", context);
+    if (!output) return { ahead: 0, behind: 0 };
+
+    let ahead = 0;
+    let behind = 0;
+
+    for (const line of output.split('\n')) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+
+        const parts = trimmed.split(/\s+/);
+        if (parts.length === 2) {
+            const a = parseInt(parts[0] ?? '0', 10);
+            const b = parseInt(parts[1] ?? '0', 10);
+            if (!isNaN(a)) ahead += a;
+            if (!isNaN(b)) behind += b;
+        }
+    }
+
+    return { ahead, behind };
+}
+
 /**
  * Clear git command cache - for testing only
  */

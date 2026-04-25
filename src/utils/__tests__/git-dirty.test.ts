@@ -9,6 +9,7 @@ import {
 
 import {
     clearGitCache,
+    getTotalAheadBehind,
     getWorktreePaths,
     runGitInDir
 } from '../git';
@@ -103,5 +104,46 @@ describe('getWorktreePaths', () => {
     it('returns empty array when git is unavailable', () => {
         mockExecSync.mockImplementation(() => { throw new Error('no git'); });
         expect(getWorktreePaths(context)).toEqual([]);
+    });
+});
+
+describe('getTotalAheadBehind', () => {
+    const context = { data: { cwd: '/repo' } };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        clearGitCache();
+    });
+
+    it('sums ahead and behind counts across all branches', () => {
+        mockExecSync.mockImplementation(((cmd: string) => {
+            if (cmd.includes('for-each-ref')) return '2 1\n1 0\n0 3\n';
+            throw new Error(`unexpected: ${cmd}`);
+        }) as unknown as () => never);
+
+        expect(getTotalAheadBehind(context)).toEqual({ ahead: 3, behind: 4 });
+    });
+
+    it('skips empty lines (branches with no push upstream)', () => {
+        mockExecSync.mockImplementation(((cmd: string) => {
+            if (cmd.includes('for-each-ref')) return '2 0\n\n1 1\n';
+            throw new Error(`unexpected: ${cmd}`);
+        }) as unknown as () => never);
+
+        expect(getTotalAheadBehind(context)).toEqual({ ahead: 3, behind: 1 });
+    });
+
+    it('returns zeros when all branches are in sync', () => {
+        mockExecSync.mockImplementation(((cmd: string) => {
+            if (cmd.includes('for-each-ref')) return '0 0\n0 0\n';
+            throw new Error(`unexpected: ${cmd}`);
+        }) as unknown as () => never);
+
+        expect(getTotalAheadBehind(context)).toEqual({ ahead: 0, behind: 0 });
+    });
+
+    it('returns zeros when not in a git repo', () => {
+        mockExecSync.mockImplementation(() => { throw new Error('no git'); });
+        expect(getTotalAheadBehind(context)).toEqual({ ahead: 0, behind: 0 });
     });
 });
