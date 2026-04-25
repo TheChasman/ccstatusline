@@ -117,7 +117,8 @@ describe('getTotalAheadBehind', () => {
 
     it('sums ahead and behind counts across all branches', () => {
         mockExecSync.mockImplementation(((cmd: string) => {
-            if (cmd.includes('for-each-ref')) return '2 1\n1 0\n0 3\n';
+            if (cmd.includes('for-each-ref'))
+                return '2 1\n1 0\n0 3\n';
             throw new Error(`unexpected: ${cmd}`);
         }) as unknown as () => never);
 
@@ -126,7 +127,8 @@ describe('getTotalAheadBehind', () => {
 
     it('skips empty lines (branches with no push upstream)', () => {
         mockExecSync.mockImplementation(((cmd: string) => {
-            if (cmd.includes('for-each-ref')) return '2 0\n\n1 1\n';
+            if (cmd.includes('for-each-ref'))
+                return '2 0\n\n1 1\n';
             throw new Error(`unexpected: ${cmd}`);
         }) as unknown as () => never);
 
@@ -135,7 +137,8 @@ describe('getTotalAheadBehind', () => {
 
     it('returns zeros when all branches are in sync', () => {
         mockExecSync.mockImplementation(((cmd: string) => {
-            if (cmd.includes('for-each-ref')) return '0 0\n0 0\n';
+            if (cmd.includes('for-each-ref'))
+                return '0 0\n0 0\n';
             throw new Error(`unexpected: ${cmd}`);
         }) as unknown as () => never);
 

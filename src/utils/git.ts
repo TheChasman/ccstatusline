@@ -76,7 +76,8 @@ export function runGitInDir(command: string, dir: string): string | null {
 
 export function getWorktreePaths(context: RenderContext): string[] {
     const output = runGit('worktree list --porcelain', context);
-    if (!output) return [];
+    if (!output)
+        return [];
 
     const paths: string[] = [];
     for (const line of output.split('\n')) {
@@ -93,22 +94,26 @@ export interface TotalAheadBehind {
 }
 
 export function getTotalAheadBehind(context: RenderContext): TotalAheadBehind {
-    const output = runGit("for-each-ref '--format=%(ahead-behind:push)' refs/heads", context);
-    if (!output) return { ahead: 0, behind: 0 };
+    const output = runGit(`for-each-ref '--format=%(ahead-behind:@{push})' refs/heads`, context);
+    if (!output)
+        return { ahead: 0, behind: 0 };
 
     let ahead = 0;
     let behind = 0;
 
     for (const line of output.split('\n')) {
         const trimmed = line.trim();
-        if (!trimmed) continue;
+        if (!trimmed)
+            continue;
 
         const parts = trimmed.split(/\s+/);
         if (parts.length === 2) {
             const a = parseInt(parts[0] ?? '0', 10);
             const b = parseInt(parts[1] ?? '0', 10);
-            if (!isNaN(a)) ahead += a;
-            if (!isNaN(b)) behind += b;
+            if (!isNaN(a))
+                ahead += a;
+            if (!isNaN(b))
+                behind += b;
         }
     }
 
