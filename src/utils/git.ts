@@ -51,6 +51,29 @@ export function runGit(command: string, context: RenderContext): string | null {
     }
 }
 
+export function runGitInDir(command: string, dir: string): string | null {
+    const cacheKey = `${command}|${dir}`;
+
+    if (gitCommandCache.has(cacheKey)) {
+        return gitCommandCache.get(cacheKey) ?? null;
+    }
+
+    try {
+        const output = execSync(`git ${command}`, {
+            encoding: 'utf8',
+            stdio: ['pipe', 'pipe', 'ignore'],
+            cwd: dir
+        }).trimEnd();
+
+        const result = output.length > 0 ? output : null;
+        gitCommandCache.set(cacheKey, result);
+        return result;
+    } catch {
+        gitCommandCache.set(cacheKey, null);
+        return null;
+    }
+}
+
 /**
  * Clear git command cache - for testing only
  */
