@@ -12,19 +12,19 @@ import { DEFAULT_SETTINGS } from '../../types/Settings';
 import type { WidgetItem } from '../../types/Widget';
 import {
     getDirtyWorktreeCount,
-    getTotalAheadBehind,
+    getGitAheadBehind,
     isInsideGitWorkTree
 } from '../../utils/git';
 import { GitDirtyWidget } from '../GitDirty';
 
 vi.mock('../../utils/git', () => ({
     getDirtyWorktreeCount: vi.fn(),
-    getTotalAheadBehind: vi.fn(),
+    getGitAheadBehind: vi.fn(),
     isInsideGitWorkTree: vi.fn()
 }));
 
 const mockIsInside = isInsideGitWorkTree as Mock;
-const mockAheadBehind = getTotalAheadBehind as Mock;
+const mockAheadBehind = getGitAheadBehind as Mock;
 const mockDirty = getDirtyWorktreeCount as Mock;
 
 const widget = new GitDirtyWidget();

@@ -189,10 +189,8 @@ function getUncommittedChangeCounts(context: RenderContext): GitChangeCounts {
  * - On a feature branch: diff between working tree and the merge-base with the
  *   default branch (so every commit made on the branch plus any uncommitted
  *   changes is reflected).
- * - On the default branch: diff between working tree and HEAD~1 (the last commit
- *   plus any uncommitted changes).
- * - Detached HEAD, root commit, or no default branch available: falls back to
- *   uncommitted changes only (working tree vs HEAD).
+ * - On the default branch or when no merge-base is available: uncommitted changes
+ *   only (working tree vs HEAD), so the count is 0 on a clean committed tree.
  */
 export function getGitChangeCounts(context: RenderContext): GitChangeCounts {
     const defaultBranch = getDefaultBranch(context);
@@ -205,8 +203,6 @@ export function getGitChangeCounts(context: RenderContext): GitChangeCounts {
         if (base) {
             diffTarget = base;
         }
-    } else if (runGit('rev-parse --verify HEAD~1', context)) {
-        diffTarget = 'HEAD~1';
     }
 
     if (diffTarget) {

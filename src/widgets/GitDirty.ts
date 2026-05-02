@@ -7,7 +7,7 @@ import type {
 } from '../types/Widget';
 import {
     getDirtyWorktreeCount,
-    getTotalAheadBehind,
+    getGitAheadBehind,
     isInsideGitWorkTree
 } from '../utils/git';
 
@@ -17,7 +17,7 @@ export class GitDirtyWidget implements Widget {
     }
 
     getDescription(): string {
-        return 'Shows outstanding changes: ↑ unpushed and ↓ unpulled across all branches, ● dirty worktree count — absent when clean';
+        return 'Shows outstanding changes: ↑ unpushed and ↓ unpulled on current branch, ● dirty worktree count — absent when clean';
     }
 
     getDisplayName(): string {
@@ -39,7 +39,9 @@ export class GitDirtyWidget implements Widget {
         if (!isInsideGitWorkTree(context))
             return null;
 
-        const { ahead, behind } = getTotalAheadBehind(context);
+        const ab = getGitAheadBehind(context);
+        const ahead = ab?.ahead ?? 0;
+        const behind = ab?.behind ?? 0;
         const dirty = getDirtyWorktreeCount(context);
 
         return `↑${ahead}↓${behind}●${dirty}`;

@@ -169,12 +169,12 @@ describe('git utils', () => {
             expect(getGitChangeCounts({})).toEqual({ insertions: 42, deletions: 9 });
         });
 
-        it('diffs against HEAD~1 when on the default branch', () => {
+        it('uses uncommitted diff when on the default branch', () => {
             setupGitResponses({
                 'symbolic-ref --short refs/remotes/origin/HEAD': 'origin/main',
                 'rev-parse --abbrev-ref HEAD': 'main',
-                'rev-parse --verify HEAD~1': 'deadbeef',
-                'diff HEAD~1 --shortstat': '1 file changed, 3 insertions(+), 1 deletion(-)'
+                'diff --shortstat': '1 file changed, 3 insertions(+)',
+                'diff --cached --shortstat': '1 file changed, 0 insertions(+), 1 deletion(-)'
             });
 
             expect(getGitChangeCounts({})).toEqual({ insertions: 3, deletions: 1 });
@@ -205,11 +205,10 @@ describe('git utils', () => {
             expect(getGitChangeCounts({})).toEqual({ insertions: 0, deletions: 2 });
         });
 
-        it('falls back to uncommitted diff when on root commit of default branch', () => {
+        it('uses uncommitted diff on default branch with no prior commits', () => {
             setupGitResponses({
                 'symbolic-ref --short refs/remotes/origin/HEAD': 'origin/main',
                 'rev-parse --abbrev-ref HEAD': 'main',
-                'rev-parse --verify HEAD~1': '',
                 'diff --shortstat': '1 file changed, 7 insertions(+)',
                 'diff --cached --shortstat': '1 file changed, 2 deletions(-)'
             });
@@ -221,7 +220,6 @@ describe('git utils', () => {
             setupGitResponses({
                 'symbolic-ref --short refs/remotes/origin/HEAD': 'origin/main',
                 'rev-parse --abbrev-ref HEAD': 'HEAD',
-                'rev-parse --verify HEAD~1': '',
                 'diff --shortstat': '',
                 'diff --cached --shortstat': ''
             });

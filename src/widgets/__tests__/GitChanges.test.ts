@@ -81,8 +81,8 @@ describe('GitChangesWidget', () => {
                 'rev-parse --is-inside-work-tree': 'true\n',
                 'symbolic-ref --short refs/remotes/origin/HEAD': 'origin/main',
                 'rev-parse --abbrev-ref HEAD': 'main',
-                'rev-parse --verify HEAD~1': 'deadbeef',
-                'diff HEAD~1 --shortstat': ''
+                'diff --shortstat': '',
+                'diff --cached --shortstat': ''
             };
             if (sub in table)
                 return table[sub];
