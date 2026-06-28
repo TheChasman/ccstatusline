@@ -68,6 +68,7 @@ describe('InstallMenu', () => {
                 existingStatusLine: null,
                 onSelectNpx: vi.fn(),
                 onSelectBunx: vi.fn(),
+                onResetToSpecimen: vi.fn(),
                 onCancel
             }),
             {
@@ -106,6 +107,7 @@ describe('InstallMenu', () => {
                 existingStatusLine: null,
                 onSelectNpx: vi.fn(),
                 onSelectBunx: vi.fn(),
+                onResetToSpecimen: vi.fn(),
                 onCancel: vi.fn(),
                 initialSelection: 1
             }),

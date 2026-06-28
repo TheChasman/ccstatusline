@@ -14,6 +14,7 @@ export interface InstallMenuProps {
     existingStatusLine: string | null;
     onSelectNpx: () => void;
     onSelectBunx: () => void;
+    onResetToSpecimen: () => void;
     onCancel: () => void;
     initialSelection?: number;
 }
@@ -23,6 +24,7 @@ export const InstallMenu: React.FC<InstallMenuProps> = ({
     existingStatusLine,
     onSelectNpx,
     onSelectBunx,
+    onResetToSpecimen,
     onCancel,
     initialSelection = 0
 }) => {
@@ -42,6 +44,9 @@ export const InstallMenu: React.FC<InstallMenuProps> = ({
                     onSelectBunx();
                 }
                 break;
+            case 'reset':
+                onResetToSpecimen();
+                break;
             case 'back':
                 onCancel();
                 break;
@@ -58,6 +63,11 @@ export const InstallMenu: React.FC<InstallMenuProps> = ({
             sublabel: bunxAvailable ? undefined : '(not installed)',
             value: 'bunx',
             disabled: !bunxAvailable
+        },
+        {
+            label: 'Reset layout to default specimen',
+            sublabel: 'Backs up current settings then restores defaults',
+            value: 'reset'
         }
     ];
 

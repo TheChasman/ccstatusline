@@ -29,16 +29,21 @@ export const SettingsSchema = z.object({
         .min(1)
         .default([
             [
-                { id: '1', type: 'model', color: 'cyan' },
-                { id: '2', type: 'separator' },
-                { id: '3', type: 'context-length', color: 'brightBlack' },
-                { id: '4', type: 'separator' },
-                { id: '5', type: 'git-branch', color: 'magenta' },
-                { id: '6', type: 'separator' },
-                { id: '7', type: 'git-changes', color: 'yellow' }
+                { id: '1', type: 'hostname', color: 'brightGreen' },
+                { id: '2', type: 'git-origin-repo', color: 'brightBlue' },
+                { id: '3', type: 'git-is-fork', color: 'white' },
+                { id: '4', type: 'git-branch', color: 'cyan' },
+                { id: '5', type: 'worktree-name' },
+                { id: '6', type: 'git-dirty', color: 'brightMagenta' },
+                { id: '7', type: 'git-insertions', color: 'brightGreen' },
+                { id: '8', type: 'git-deletions', color: 'brightRed' }
             ],
-            [],
-            []
+            [
+                { id: '9', type: 'current-working-dir', color: 'brightGreen', metadata: { segments: '1' } },
+                { id: '10', type: 'model', color: 'brightWhite' },
+                { id: '11', type: 'thinking-effort', color: 'white' },
+                { id: '12', type: 'context-bar', color: 'dimYellow' }
+            ]
         ]), // Ensure max 3 lines
     flexMode: FlexModeSchema.default('full-minus-40'),
     compactThreshold: z.number().min(1).max(99).default(60),

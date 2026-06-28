@@ -149,6 +149,13 @@ export async function loadSettings(): Promise<Settings> {
     }
 }
 
+export async function backupAndResetToDefaults(): Promise<string> {
+    const paths = getSettingsPaths();
+    await backupBadSettings(paths);
+    await writeDefaultSettings(paths);
+    return paths.settingsBackupPath;
+}
+
 export async function saveSettings(settings: Settings): Promise<DeployResult | null> {
     const paths = getSettingsPaths();
 

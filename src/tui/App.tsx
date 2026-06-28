@@ -27,6 +27,7 @@ import {
 } from '../utils/claude-settings';
 import { cloneSettings } from '../utils/clone-settings';
 import {
+    backupAndResetToDefaults,
     getConfigPath,
     isCustomConfigPath,
     loadSettings,
@@ -235,6 +236,27 @@ export const App: React.FC = () => {
         setMenuSelections(prev => ({ ...prev, install: 1 }));
         handleInstallSelection(CCSTATUSLINE_COMMANDS.BUNX, 'bunx', true);
     }, [handleInstallSelection]);
+
+    const handleResetToSpecimen = useCallback(() => {
+        setConfirmDialog({
+            message: `Reset layout to default specimen?\n\nYour current settings will be backed up before overwriting.\nPath: ${getConfigPath()}`,
+            cancelScreen: 'install',
+            action: async () => {
+                const backupPath = await backupAndResetToDefaults();
+                const reloaded = await loadSettings();
+                setSettings(reloaded);
+                setOriginalSettings(cloneSettings(reloaded));
+                setHasChanges(false);
+                setScreen('main');
+                setConfirmDialog(null);
+                setFlashMessage({
+                    text: `✓ Settings reset. Backup saved to ${backupPath}`,
+                    color: 'green'
+                });
+            }
+        });
+        setScreen('confirm');
+    }, []);
 
     const handleInstallMenuCancel = useCallback(() => {
         setMenuSelections(clearInstallMenuSelection);
@@ -514,6 +536,7 @@ export const App: React.FC = () => {
                         existingStatusLine={existingStatusLine}
                         onSelectNpx={handleNpxInstall}
                         onSelectBunx={handleBunxInstall}
+                        onResetToSpecimen={handleResetToSpecimen}
                         onCancel={handleInstallMenuCancel}
                         initialSelection={menuSelections.install}
                     />
