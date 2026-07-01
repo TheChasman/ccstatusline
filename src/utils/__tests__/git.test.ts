@@ -33,6 +33,32 @@ describe('git utils', () => {
     });
 
     describe('resolveGitCwd', () => {
+        it('prefers context.data.worktree.path over cwd and workspace fields', () => {
+            const context: RenderContext = {
+                data: {
+                    cwd: '/repo/from/cwd',
+                    workspace: {
+                        current_dir: '/repo/from/current-dir',
+                        project_dir: '/repo/from/project-dir'
+                    },
+                    worktree: { path: '/repo/from/worktree' }
+                }
+            };
+
+            expect(resolveGitCwd(context)).toBe('/repo/from/worktree');
+        });
+
+        it('skips empty worktree.path and falls back to cwd', () => {
+            const context: RenderContext = {
+                data: {
+                    cwd: '/repo/from/cwd',
+                    worktree: { path: '   ' }
+                }
+            };
+
+            expect(resolveGitCwd(context)).toBe('/repo/from/cwd');
+        });
+
         it('prefers context.data.cwd when available', () => {
             const context: RenderContext = {
                 data: {

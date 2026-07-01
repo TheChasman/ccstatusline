@@ -12,6 +12,7 @@ const gitCommandCache = new Map<string, string | null>();
 
 export function resolveGitCwd(context: RenderContext): string | undefined {
     const candidates = [
+        context.data?.worktree?.path,
         context.data?.cwd,
         context.data?.workspace?.current_dir,
         context.data?.workspace?.project_dir
