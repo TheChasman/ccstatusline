@@ -149,3 +149,7 @@ Default to using Bun instead of Node.js:
   - Run tests with `bun test` or `bun test --watch` for watch mode
   - Test configuration: vitest.config.ts
   - Manual testing also available via piped input and TUI interaction
+
+## Secrets Management
+
+This project uses SpockLock for secrets. See [`SPOCKLOCK.md`](./SPOCKLOCK.md) for how secrets are managed here — what to touch, what not to touch.
