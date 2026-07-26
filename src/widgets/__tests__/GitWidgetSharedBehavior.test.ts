@@ -12,6 +12,7 @@ import type {
 import { GitBranchWidget } from '../GitBranch';
 import { GitChangesWidget } from '../GitChanges';
 import { GitDeletionsWidget } from '../GitDeletions';
+import { GitHybridBranchWidget } from '../GitHybridBranch';
 import { GitInsertionsWidget } from '../GitInsertions';
 import { GitPrWidget } from '../GitPr';
 import { GitRootDirWidget } from '../GitRootDir';
@@ -24,6 +25,7 @@ type GitWidget = Widget & {
 
 const cases: { name: string; itemType: string; widget: GitWidget }[] = [
     { name: 'GitBranchWidget', itemType: 'git-branch', widget: new GitBranchWidget() },
+    { name: 'GitHybridBranchWidget', itemType: 'git-hybrid-branch', widget: new GitHybridBranchWidget() },
     { name: 'GitChangesWidget', itemType: 'git-changes', widget: new GitChangesWidget() },
     { name: 'GitInsertionsWidget', itemType: 'git-insertions', widget: new GitInsertionsWidget() },
     { name: 'GitDeletionsWidget', itemType: 'git-deletions', widget: new GitDeletionsWidget() },

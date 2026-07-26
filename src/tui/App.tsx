@@ -363,7 +363,7 @@ export const App: React.FC = () => {
     };
 
     return (
-        <Box flexDirection='column'>
+        <Box flexDirection='column' width={terminalWidth}>
             <Box marginBottom={1}>
                 <Text bold>
                     <Gradient name='retro'>

@@ -1,87 +1,126 @@
-import type { Mock } from 'vitest';
 import {
     beforeEach,
     describe,
     expect,
-    it,
-    vi
+    it
 } from 'vitest';
 
-import type { RenderContext } from '../../types/RenderContext';
+import type {
+    GitCommandOptions,
+    GitCommandRunner,
+    RenderContext
+} from '../../types/RenderContext';
 import { DEFAULT_SETTINGS } from '../../types/Settings';
 import type { WidgetItem } from '../../types/Widget';
-import {
-    getDirtyWorktreeCount,
-    getGitAheadBehind,
-    isInsideGitWorkTree
-} from '../../utils/git';
+import { clearGitCache } from '../../utils/git';
 import { GitDirtyWidget } from '../GitDirty';
 
-vi.mock('../../utils/git', () => ({
-    getDirtyWorktreeCount: vi.fn(),
-    getGitAheadBehind: vi.fn(),
-    isInsideGitWorkTree: vi.fn()
-}));
+interface WorktreeState {
+    path: string;
+    dirty: boolean;
+}
 
-const mockIsInside = isInsideGitWorkTree as Mock;
-const mockAheadBehind = getGitAheadBehind as Mock;
-const mockDirty = getDirtyWorktreeCount as Mock;
+function createGitCommandRunner(config: {
+    insideWorkTree?: boolean;
+    ahead?: number;
+    behind?: number;
+    worktrees?: WorktreeState[];
+} = {}): GitCommandRunner {
+    const {
+        insideWorkTree = true,
+        ahead = 0,
+        behind = 0,
+        worktrees = [{ path: '/repo', dirty: false }]
+    } = config;
 
-const widget = new GitDirtyWidget();
-const item: WidgetItem = { id: 'git-dirty', type: 'git-dirty' };
-const context: RenderContext = { data: { cwd: '/repo' } };
+    return (command: string, options: GitCommandOptions) => {
+        const sub = command.replace(/^git\s+/, '');
+
+        if (sub === 'rev-parse --is-inside-work-tree')
+            return insideWorkTree ? 'true\n' : 'false\n';
+
+        if (sub === 'rev-list --left-right --count HEAD...@{upstream}')
+            return `${ahead}\t${behind}\n`;
+
+        if (sub === 'worktree list --porcelain') {
+            return worktrees
+                .map(wt => `worktree ${wt.path}\nHEAD abc\nbranch refs/heads/main\n`)
+                .join('\n');
+        }
+
+        if (sub === '--no-optional-locks status --porcelain') {
+            const match = worktrees.find(wt => wt.path === options.cwd);
+            return match?.dirty ? ' M src/file.ts\n' : '';
+        }
+
+        throw new Error(`unexpected git call: ${sub} (cwd=${options.cwd ?? ''})`);
+    };
+}
+
+function render(options: {
+    isPreview?: boolean;
+    gitCommandRunner?: GitCommandRunner;
+} = {}) {
+    const widget = new GitDirtyWidget();
+    const context: RenderContext = {
+        isPreview: options.isPreview,
+        data: { cwd: '/repo' },
+        gitCommandRunner: options.gitCommandRunner ?? createGitCommandRunner()
+    };
+    const item: WidgetItem = { id: 'git-dirty', type: 'git-dirty' };
+
+    return widget.render(item, context, DEFAULT_SETTINGS);
+}
 
 describe('GitDirtyWidget', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
+        clearGitCache();
     });
 
     it('returns preview string', () => {
-        const previewContext: RenderContext = { isPreview: true };
-        expect(widget.render(item, previewContext, DEFAULT_SETTINGS)).toBe('↑2↓3●1');
+        expect(render({ isPreview: true })).toBe('↑2↓3●1');
     });
 
     it('returns null when not inside a git repo', () => {
-        mockIsInside.mockReturnValue(false);
-        expect(widget.render(item, context, DEFAULT_SETTINGS)).toBeNull();
+        expect(render({ gitCommandRunner: createGitCommandRunner({ insideWorkTree: false }) })).toBeNull();
     });
 
     it('shows zeros when repo is fully clean', () => {
-        mockIsInside.mockReturnValue(true);
-        mockAheadBehind.mockReturnValue({ ahead: 0, behind: 0 });
-        mockDirty.mockReturnValue(0);
-        expect(widget.render(item, context, DEFAULT_SETTINGS)).toBe('↑0↓0●0');
+        expect(render({ gitCommandRunner: createGitCommandRunner({ ahead: 0, behind: 0 }) })).toBe('↑0↓0●0');
     });
 
     it('shows all parts when only ahead', () => {
-        mockIsInside.mockReturnValue(true);
-        mockAheadBehind.mockReturnValue({ ahead: 3, behind: 0 });
-        mockDirty.mockReturnValue(0);
-        expect(widget.render(item, context, DEFAULT_SETTINGS)).toBe('↑3↓0●0');
+        expect(render({ gitCommandRunner: createGitCommandRunner({ ahead: 3, behind: 0 }) })).toBe('↑3↓0●0');
     });
 
     it('shows all parts when only behind', () => {
-        mockIsInside.mockReturnValue(true);
-        mockAheadBehind.mockReturnValue({ ahead: 0, behind: 2 });
-        mockDirty.mockReturnValue(0);
-        expect(widget.render(item, context, DEFAULT_SETTINGS)).toBe('↑0↓2●0');
+        expect(render({ gitCommandRunner: createGitCommandRunner({ ahead: 0, behind: 2 }) })).toBe('↑0↓2●0');
     });
 
     it('shows all parts when only worktrees are dirty', () => {
-        mockIsInside.mockReturnValue(true);
-        mockAheadBehind.mockReturnValue({ ahead: 0, behind: 0 });
-        mockDirty.mockReturnValue(1);
-        expect(widget.render(item, context, DEFAULT_SETTINGS)).toBe('↑0↓0●1');
+        expect(render({
+            gitCommandRunner: createGitCommandRunner({
+                ahead: 0,
+                behind: 0,
+                worktrees: [{ path: '/repo', dirty: true }]
+            })
+        })).toBe('↑0↓0●1');
     });
 
     it('shows all three parts when all are non-zero', () => {
-        mockIsInside.mockReturnValue(true);
-        mockAheadBehind.mockReturnValue({ ahead: 2, behind: 3 });
-        mockDirty.mockReturnValue(1);
-        expect(widget.render(item, context, DEFAULT_SETTINGS)).toBe('↑2↓3●1');
+        expect(render({
+            gitCommandRunner: createGitCommandRunner({
+                ahead: 2,
+                behind: 3,
+                worktrees: [{ path: '/repo', dirty: true }]
+            })
+        })).toBe('↑2↓3●1');
     });
 
     it('has correct metadata', () => {
+        const widget = new GitDirtyWidget();
+        const item: WidgetItem = { id: 'git-dirty', type: 'git-dirty' };
+
         expect(widget.getDefaultColor()).toBe('red');
         expect(widget.getDisplayName()).toBe('Git Dirty');
         expect(widget.getCategory()).toBe('Git');

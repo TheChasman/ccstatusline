@@ -1,7 +1,7 @@
-import { execSync } from 'child_process';
+import * as childProcess from 'child_process';
 import os from 'os';
-import type { Mock } from 'vitest';
 import {
+    afterEach,
     beforeEach,
     describe,
     expect,
@@ -14,17 +14,12 @@ import { DEFAULT_SETTINGS } from '../../types/Settings';
 import type { WidgetItem } from '../../types/Widget';
 import { HostnameWidget } from '../Hostname';
 
-vi.mock('child_process', () => ({ execSync: vi.fn() }));
-vi.mock('os', () => ({
-    default: {
-        platform: vi.fn(),
-        hostname: vi.fn()
-    }
-}));
-
-const mockExecSync = execSync as Mock;
-const mockPlatform = os.platform as Mock;
-const mockHostname = os.hostname as Mock;
+let mockExecSync: {
+    mockImplementation: (impl: () => never) => void;
+    mockReturnValue: (value: string) => void;
+};
+let mockPlatform: { mockReturnValue: (value: NodeJS.Platform) => void };
+let mockHostname: { mockReturnValue: (value: string) => void };
 
 const widget = new HostnameWidget();
 const item: WidgetItem = { id: 'hostname', type: 'hostname' };
@@ -33,7 +28,14 @@ const context: RenderContext = { data: { cwd: '/repo' } };
 
 describe('HostnameWidget', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
+        vi.restoreAllMocks();
+        mockExecSync = vi.spyOn(childProcess, 'execSync') as unknown as typeof mockExecSync;
+        mockPlatform = vi.spyOn(os, 'platform') as unknown as typeof mockPlatform;
+        mockHostname = vi.spyOn(os, 'hostname') as unknown as typeof mockHostname;
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     it('returns prefixed preview string', () => {

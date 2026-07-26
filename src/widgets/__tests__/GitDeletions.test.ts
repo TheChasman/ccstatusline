@@ -1,36 +1,63 @@
-import { execSync } from 'child_process';
 import {
     beforeEach,
     describe,
     expect,
-    it,
-    vi
+    it
 } from 'vitest';
 
-import type { RenderContext } from '../../types/RenderContext';
+import type {
+    GitCommandOptions,
+    GitCommandRunner,
+    RenderContext
+} from '../../types/RenderContext';
 import { DEFAULT_SETTINGS } from '../../types/Settings';
 import type { WidgetItem } from '../../types/Widget';
 import { clearGitCache } from '../../utils/git';
 import { GitDeletionsWidget } from '../GitDeletions';
 
-vi.mock('child_process', () => ({ execSync: vi.fn() }));
-
-const mockExecSync = execSync as unknown as {
-    mock: { calls: unknown[][] };
-    mockImplementation: (impl: () => never) => void;
+type MockGitCommandRunner = GitCommandRunner & {
+    calls: [string, GitCommandOptions][];
+    mockImplementation: (impl: (command: string) => string) => void;
     mockReturnValue: (value: string) => void;
     mockReturnValueOnce: (value: string) => void;
 };
 
+function createGitCommandRunner(): MockGitCommandRunner {
+    const calls: [string, GitCommandOptions][] = [];
+    const queuedValues: string[] = [];
+    let implementation: (command: string) => string = () => '';
+
+    const runner = ((command: string, options: GitCommandOptions) => {
+        calls.push([command, options]);
+        const queuedValue = queuedValues.shift();
+        return queuedValue ?? implementation(command);
+    }) as MockGitCommandRunner;
+
+    runner.calls = calls;
+    runner.mockImplementation = (impl) => {
+        implementation = impl;
+    };
+    runner.mockReturnValue = (value) => {
+        implementation = () => value;
+    };
+    runner.mockReturnValueOnce = (value) => {
+        queuedValues.push(value);
+    };
+
+    return runner;
+}
+
 function render(options: {
     cwd?: string;
+    gitCommandRunner?: GitCommandRunner;
     hideNoGit?: boolean;
     isPreview?: boolean;
 } = {}) {
     const widget = new GitDeletionsWidget();
     const context: RenderContext = {
         isPreview: options.isPreview,
-        data: options.cwd ? { cwd: options.cwd } : undefined
+        data: options.cwd ? { cwd: options.cwd } : undefined,
+        gitCommandRunner: options.gitCommandRunner ?? createGitCommandRunner()
     };
     const item: WidgetItem = {
         id: 'git-deletions',
@@ -43,7 +70,6 @@ function render(options: {
 
 describe('GitDeletionsWidget', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
         clearGitCache();
     });
 
@@ -52,7 +78,8 @@ describe('GitDeletionsWidget', () => {
     });
 
     it('should render cumulative deletions for the current branch vs default', () => {
-        mockExecSync.mockImplementation(((cmd: string) => {
+        const gitCommandRunner = createGitCommandRunner();
+        gitCommandRunner.mockImplementation((cmd: string) => {
             const sub = cmd.replace(/^git\s+/, '');
             const table: Record<string, string> = {
                 'rev-parse --is-inside-work-tree': 'true\n',
@@ -61,13 +88,14 @@ describe('GitDeletionsWidget', () => {
                 'merge-base HEAD main': 'abc123',
                 'diff abc123 --shortstat': '4 files changed, 2 insertions(+), 5 deletions(-)'
             };
-            if (sub in table)
-                return table[sub];
+            const value = table[sub];
+            if (value !== undefined)
+                return value;
             throw new Error(`unexpected git call: ${sub}`);
-        }) as unknown as () => never);
+        });
 
-        expect(render({ cwd: '/tmp/worktree' })).toBe('-5');
-        expect(mockExecSync.mock.calls[0]?.[1]).toEqual({
+        expect(render({ cwd: '/tmp/worktree', gitCommandRunner })).toBe('-5');
+        expect(gitCommandRunner.calls[0]?.[1]).toEqual({
             encoding: 'utf8',
             stdio: ['pipe', 'pipe', 'ignore'],
             cwd: '/tmp/worktree'
@@ -75,7 +103,8 @@ describe('GitDeletionsWidget', () => {
     });
 
     it('should render zero count when repo is clean', () => {
-        mockExecSync.mockImplementation(((cmd: string) => {
+        const gitCommandRunner = createGitCommandRunner();
+        gitCommandRunner.mockImplementation((cmd: string) => {
             const sub = cmd.replace(/^git\s+/, '');
             const table: Record<string, string> = {
                 'rev-parse --is-inside-work-tree': 'true\n',
@@ -84,30 +113,34 @@ describe('GitDeletionsWidget', () => {
                 'diff --shortstat': '',
                 'diff --cached --shortstat': ''
             };
-            if (sub in table)
-                return table[sub];
+            const value = table[sub];
+            if (value !== undefined)
+                return value;
             throw new Error(`unexpected git call: ${sub}`);
-        }) as unknown as () => never);
+        });
 
-        expect(render()).toBe('-0');
+        expect(render({ gitCommandRunner })).toBe('-0');
     });
 
     it('should render no git when probe returns false', () => {
-        mockExecSync.mockReturnValue('false\n');
+        const gitCommandRunner = createGitCommandRunner();
+        gitCommandRunner.mockReturnValue('false\n');
 
-        expect(render()).toBe('(no git)');
+        expect(render({ gitCommandRunner })).toBe('(no git)');
     });
 
     it('should hide no git when configured', () => {
-        mockExecSync.mockReturnValue('false\n');
+        const gitCommandRunner = createGitCommandRunner();
+        gitCommandRunner.mockReturnValue('false\n');
 
-        expect(render({ hideNoGit: true })).toBeNull();
+        expect(render({ hideNoGit: true, gitCommandRunner })).toBeNull();
     });
 
     it('should render no git when command fails', () => {
-        mockExecSync.mockImplementation(() => { throw new Error('No git'); });
+        const gitCommandRunner = createGitCommandRunner();
+        gitCommandRunner.mockImplementation(() => { throw new Error('No git'); });
 
-        expect(render()).toBe('(no git)');
+        expect(render({ gitCommandRunner })).toBe('(no git)');
     });
 
     it('should disable raw value support', () => {

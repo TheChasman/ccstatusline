@@ -1,6 +1,7 @@
 export { ModelWidget } from './Model';
 export { OutputStyleWidget } from './OutputStyle';
 export { GitBranchWidget } from './GitBranch';
+export { GitHybridBranchWidget } from './GitHybridBranch';
 export { GitChangesWidget } from './GitChanges';
 export { GitInsertionsWidget } from './GitInsertions';
 export { GitDeletionsWidget } from './GitDeletions';

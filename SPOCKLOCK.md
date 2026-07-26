@@ -1,0 +1,1 @@
+/Users/chasnewport/Projects/MyMCPs/MCP-SpockLock/docs/SPOCKLOCK.md

@@ -19,6 +19,14 @@ export interface RenderUsageData {
     error?: 'no-credentials' | 'timeout' | 'rate-limited' | 'api-error' | 'parse-error';
 }
 
+export interface GitCommandOptions {
+    encoding: BufferEncoding;
+    stdio: ['pipe', 'pipe', 'ignore'];
+    cwd?: string;
+}
+
+export type GitCommandRunner = (command: string, options: GitCommandOptions) => string;
+
 export interface RenderContext {
     data?: StatusJSON;
     tokenMetrics?: TokenMetrics | null;
@@ -33,6 +41,7 @@ export interface RenderContext {
     minimalist?: boolean;
     lineIndex?: number;  // Index of the current line being rendered (for theme cycling)
     globalSeparatorIndex?: number;  // Global separator index that continues across lines
+    gitCommandRunner?: GitCommandRunner;
 
     // For git widget thresholds
     gitData?: {

@@ -1,34 +1,63 @@
-import { execSync } from 'child_process';
 import {
     beforeEach,
     describe,
     expect,
-    it,
-    vi
+    it
 } from 'vitest';
 
-import type { RenderContext } from '../../types/RenderContext';
+import type {
+    GitCommandOptions,
+    GitCommandRunner,
+    RenderContext
+} from '../../types/RenderContext';
 import { DEFAULT_SETTINGS } from '../../types/Settings';
 import type { WidgetItem } from '../../types/Widget';
 import { clearGitCache } from '../../utils/git';
 import { GitConflictsWidget } from '../GitConflicts';
 
-vi.mock('child_process', () => ({ execSync: vi.fn() }));
-
-const mockExecSync = execSync as unknown as {
-    mock: { calls: unknown[][] };
-    mockImplementation: (impl: () => never) => void;
+type MockGitCommandRunner = GitCommandRunner & {
+    calls: [string, GitCommandOptions][];
+    mockImplementation: (impl: (command: string) => string) => void;
     mockReturnValue: (value: string) => void;
     mockReturnValueOnce: (value: string) => void;
 };
 
+function createGitCommandRunner(): MockGitCommandRunner {
+    const calls: [string, GitCommandOptions][] = [];
+    const queuedValues: string[] = [];
+    let implementation: (command: string) => string = () => '';
+
+    const runner = ((command: string, options: GitCommandOptions) => {
+        calls.push([command, options]);
+        const queuedValue = queuedValues.shift();
+        return queuedValue ?? implementation(command);
+    }) as MockGitCommandRunner;
+
+    runner.calls = calls;
+    runner.mockImplementation = (impl) => {
+        implementation = impl;
+    };
+    runner.mockReturnValue = (value) => {
+        implementation = () => value;
+    };
+    runner.mockReturnValueOnce = (value) => {
+        queuedValues.push(value);
+    };
+
+    return runner;
+}
+
 function render(options: {
+    gitCommandRunner?: GitCommandRunner;
     isPreview?: boolean;
     rawValue?: boolean;
     hideNoGit?: boolean;
 } = {}) {
     const widget = new GitConflictsWidget();
-    const context: RenderContext = { isPreview: options.isPreview };
+    const context: RenderContext = {
+        isPreview: options.isPreview,
+        gitCommandRunner: options.gitCommandRunner ?? createGitCommandRunner()
+    };
     const item: WidgetItem = {
         id: 'git-conflicts',
         type: 'git-conflicts',
@@ -41,7 +70,6 @@ function render(options: {
 
 describe('GitConflictsWidget', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
         clearGitCache();
     });
 
@@ -54,34 +82,39 @@ describe('GitConflictsWidget', () => {
     });
 
     it('renders no git when outside a repository', () => {
-        mockExecSync.mockReturnValue('false\n');
+        const gitCommandRunner = createGitCommandRunner();
+        gitCommandRunner.mockReturnValue('false\n');
 
-        expect(render()).toBe('(no git)');
+        expect(render({ gitCommandRunner })).toBe('(no git)');
     });
 
     it('hides no git when configured', () => {
-        mockExecSync.mockReturnValue('false\n');
+        const gitCommandRunner = createGitCommandRunner();
+        gitCommandRunner.mockReturnValue('false\n');
 
-        expect(render({ hideNoGit: true })).toBeNull();
+        expect(render({ hideNoGit: true, gitCommandRunner })).toBeNull();
     });
 
     it('renders zero conflicts instead of hiding the widget', () => {
-        mockExecSync.mockReturnValueOnce('true\n');
-        mockExecSync.mockReturnValueOnce('');
+        const gitCommandRunner = createGitCommandRunner();
+        gitCommandRunner.mockReturnValueOnce('true\n');
+        gitCommandRunner.mockReturnValueOnce('');
 
-        expect(render()).toBe('⚠ 0');
+        expect(render({ gitCommandRunner })).toBe('⚠ 0');
     });
 
     it('renders raw zero conflicts as a numeric count', () => {
-        mockExecSync.mockReturnValueOnce('true\n');
-        mockExecSync.mockReturnValueOnce('');
+        const gitCommandRunner = createGitCommandRunner();
+        gitCommandRunner.mockReturnValueOnce('true\n');
+        gitCommandRunner.mockReturnValueOnce('');
 
-        expect(render({ rawValue: true })).toBe('0');
+        expect(render({ rawValue: true, gitCommandRunner })).toBe('0');
     });
 
     it('renders the conflict count', () => {
-        mockExecSync.mockReturnValueOnce('true\n');
-        mockExecSync.mockReturnValueOnce([
+        const gitCommandRunner = createGitCommandRunner();
+        gitCommandRunner.mockReturnValueOnce('true\n');
+        gitCommandRunner.mockReturnValueOnce([
             '100644 hash 1\tconflict-a',
             '100644 hash 2\tconflict-a',
             '100644 hash 3\tconflict-a',
@@ -90,17 +123,18 @@ describe('GitConflictsWidget', () => {
             '100644 hash 3\tconflict-b'
         ].join('\n'));
 
-        expect(render()).toBe('⚠ 2');
+        expect(render({ gitCommandRunner })).toBe('⚠ 2');
     });
 
     it('renders raw conflicts as a numeric count', () => {
-        mockExecSync.mockReturnValueOnce('true\n');
-        mockExecSync.mockReturnValueOnce([
+        const gitCommandRunner = createGitCommandRunner();
+        gitCommandRunner.mockReturnValueOnce('true\n');
+        gitCommandRunner.mockReturnValueOnce([
             '100644 hash 1\tconflict-a',
             '100644 hash 2\tconflict-a',
             '100644 hash 3\tconflict-a'
         ].join('\n'));
 
-        expect(render({ rawValue: true })).toBe('1');
+        expect(render({ rawValue: true, gitCommandRunner })).toBe('1');
     });
 });

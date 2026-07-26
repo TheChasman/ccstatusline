@@ -6,8 +6,8 @@ import type {
     WidgetItem
 } from '../types/Widget';
 import {
-    isInsideGitWorkTree,
-    runGit
+    getGitWorktreeName,
+    isInsideGitWorkTree
 } from '../utils/git';
 
 import {
@@ -51,32 +51,7 @@ export class GitWorktreeWidget implements Widget {
     }
 
     private getGitWorktree(context: RenderContext): string | null {
-        const worktreeDir = runGit('rev-parse --git-dir', context);
-        if (!worktreeDir)
-            return null;
-
-        const normalizedGitDir = worktreeDir.replace(/\\/g, '/');
-
-        // /some/path/.git or .git (main worktree of regular repo)
-        if (normalizedGitDir.endsWith('/.git') || normalizedGitDir === '.git')
-            return 'main';
-
-        // /some/path/.git/worktrees/some-worktree or /some/path/.git/worktrees/some-dir/some-worktree
-        const repoMarker = '.git/worktrees/';
-        const repoMarkerIndex = normalizedGitDir.lastIndexOf(repoMarker);
-        if (repoMarkerIndex !== -1) {
-            const worktree = normalizedGitDir.slice(repoMarkerIndex + repoMarker.length);
-            return worktree.length > 0 ? worktree : null;
-        }
-
-        // /some/path/worktrees/some-worktree or /some/path/worktrees/some-dir/some-worktree
-        const bareMarker = '/worktrees/';
-        const bareMarkerIndex = normalizedGitDir.lastIndexOf(bareMarker);
-        if (bareMarkerIndex === -1)
-            return null;
-
-        const worktree = normalizedGitDir.slice(bareMarkerIndex + bareMarker.length);
-        return worktree.length > 0 ? worktree : null;
+        return getGitWorktreeName(context);
     }
 
     getCustomKeybinds(): CustomKeybind[] {

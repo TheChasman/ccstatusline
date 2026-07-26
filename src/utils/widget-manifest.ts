@@ -20,6 +20,7 @@ export const WIDGET_MANIFEST: WidgetManifestEntry[] = [
     { type: 'model', create: () => new widgets.ModelWidget() },
     { type: 'output-style', create: () => new widgets.OutputStyleWidget() },
     { type: 'git-branch', create: () => new widgets.GitBranchWidget() },
+    { type: 'git-hybrid-branch', create: () => new widgets.GitHybridBranchWidget() },
     { type: 'git-changes', create: () => new widgets.GitChangesWidget() },
     { type: 'git-insertions', create: () => new widgets.GitInsertionsWidget() },
     { type: 'git-deletions', create: () => new widgets.GitDeletionsWidget() },

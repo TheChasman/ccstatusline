@@ -1,6 +1,10 @@
-import { execSync } from 'child_process';
+import * as childProcess from 'child_process';
 
-import type { RenderContext } from '../types/RenderContext';
+import type {
+    GitCommandOptions,
+    GitCommandRunner,
+    RenderContext
+} from '../types/RenderContext';
 
 export interface GitChangeCounts {
     insertions: number;
@@ -9,6 +13,12 @@ export interface GitChangeCounts {
 
 // Cache for git commands - key is "command|cwd"
 const gitCommandCache = new Map<string, string | null>();
+
+function runGitCommand(command: string, options: GitCommandOptions, runner?: GitCommandRunner): string {
+    return runner
+        ? runner(command, options)
+        : childProcess.execSync(command, options);
+}
 
 export function resolveGitCwd(context: RenderContext): string | undefined {
     const candidates = [
@@ -30,47 +40,55 @@ export function resolveGitCwd(context: RenderContext): string | undefined {
 export function runGit(command: string, context: RenderContext): string | null {
     const cwd = resolveGitCwd(context);
     const cacheKey = `${command}|${cwd ?? ''}`;
+    const shouldCache = !context.gitCommandRunner;
 
     // Check cache first
-    if (gitCommandCache.has(cacheKey)) {
+    if (shouldCache && gitCommandCache.has(cacheKey)) {
         return gitCommandCache.get(cacheKey) ?? null;
     }
 
     try {
-        const output = execSync(`git ${command}`, {
+        const options: GitCommandOptions = {
             encoding: 'utf8',
             stdio: ['pipe', 'pipe', 'ignore'],
             ...(cwd ? { cwd } : {})
-        }).trimEnd();
+        };
+        const output = runGitCommand(`git ${command}`, options, context.gitCommandRunner).trimEnd();
 
         const result = output.length > 0 ? output : null;
-        gitCommandCache.set(cacheKey, result);
+        if (shouldCache)
+            gitCommandCache.set(cacheKey, result);
         return result;
     } catch {
-        gitCommandCache.set(cacheKey, null);
+        if (shouldCache)
+            gitCommandCache.set(cacheKey, null);
         return null;
     }
 }
 
-export function runGitInDir(command: string, dir: string): string | null {
+export function runGitInDir(command: string, dir: string, runner?: GitCommandRunner): string | null {
     const cacheKey = `dir:${dir}|${command}`;
+    const shouldCache = !runner;
 
-    if (gitCommandCache.has(cacheKey)) {
+    if (shouldCache && gitCommandCache.has(cacheKey)) {
         return gitCommandCache.get(cacheKey) ?? null;
     }
 
     try {
-        const output = execSync(`git ${command}`, {
+        const options: GitCommandOptions = {
             encoding: 'utf8',
             stdio: ['pipe', 'pipe', 'ignore'],
             cwd: dir
-        }).trimEnd();
+        };
+        const output = runGitCommand(`git ${command}`, options, runner).trimEnd();
 
         const result = output.length > 0 ? output : null;
-        gitCommandCache.set(cacheKey, result);
+        if (shouldCache)
+            gitCommandCache.set(cacheKey, result);
         return result;
     } catch {
-        gitCommandCache.set(cacheKey, null);
+        if (shouldCache)
+            gitCommandCache.set(cacheKey, null);
         return null;
     }
 }
@@ -125,7 +143,7 @@ export function getDirtyWorktreeCount(context: RenderContext): number {
     const paths = getWorktreePaths(context);
     let count = 0;
     for (const path of paths) {
-        const status = runGitInDir('--no-optional-locks status --porcelain', path);
+        const status = runGitInDir('--no-optional-locks status --porcelain', path, context.gitCommandRunner);
         if (status) {
             count++;
         }
@@ -142,6 +160,32 @@ export function clearGitCache(): void {
 
 export function isInsideGitWorkTree(context: RenderContext): boolean {
     return runGit('rev-parse --is-inside-work-tree', context) === 'true';
+}
+
+export function getGitWorktreeName(context: RenderContext): string | null {
+    const worktreeDir = runGit('rev-parse --git-dir', context);
+    if (!worktreeDir)
+        return null;
+
+    const normalizedGitDir = worktreeDir.replace(/\\/g, '/');
+
+    if (normalizedGitDir.endsWith('/.git') || normalizedGitDir === '.git')
+        return 'main';
+
+    const repoMarker = '.git/worktrees/';
+    const repoMarkerIndex = normalizedGitDir.lastIndexOf(repoMarker);
+    if (repoMarkerIndex !== -1) {
+        const worktree = normalizedGitDir.slice(repoMarkerIndex + repoMarker.length);
+        return worktree.length > 0 ? worktree : null;
+    }
+
+    const bareMarker = '/worktrees/';
+    const bareMarkerIndex = normalizedGitDir.lastIndexOf(bareMarker);
+    if (bareMarkerIndex === -1)
+        return null;
+
+    const worktree = normalizedGitDir.slice(bareMarkerIndex + bareMarker.length);
+    return worktree.length > 0 ? worktree : null;
 }
 
 function parseDiffShortStat(stat: string): GitChangeCounts {
