@@ -101,6 +101,30 @@ describe('ModelWidget', () => {
             expect(result).toEqual({ color: getTrafficLightColor('red', DEFAULT_SETTINGS.colorLevel) });
         });
 
+        it('returns green for luna models', () => {
+            const context: RenderContext = { data: { model: 'Codex Luna' } };
+            const item: WidgetItem = { id: '1', type: 'model' };
+
+            const result = widget.getDynamicColors(item, context, DEFAULT_SETTINGS);
+            expect(result).toEqual({ color: getTrafficLightColor('green', DEFAULT_SETTINGS.colorLevel) });
+        });
+
+        it('returns orange for terra models', () => {
+            const context: RenderContext = { data: { model: 'Codex Terra' } };
+            const item: WidgetItem = { id: '1', type: 'model' };
+
+            const result = widget.getDynamicColors(item, context, DEFAULT_SETTINGS);
+            expect(result).toEqual({ color: getTrafficLightColor('orange', DEFAULT_SETTINGS.colorLevel) });
+        });
+
+        it('returns red for sol models', () => {
+            const context: RenderContext = { data: { model: 'Codex Sol' } };
+            const item: WidgetItem = { id: '1', type: 'model' };
+
+            const result = widget.getDynamicColors(item, context, DEFAULT_SETTINGS);
+            expect(result).toEqual({ color: getTrafficLightColor('red', DEFAULT_SETTINGS.colorLevel) });
+        });
+
         it('returns null for unknown models', () => {
             const context: RenderContext = { data: { model: 'CustomModel' } };
             const item: WidgetItem = { id: '1', type: 'model' };
