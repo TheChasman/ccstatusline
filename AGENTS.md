@@ -39,6 +39,13 @@ bun run lint      # Runs TypeScript type checking and ESLint without modifying f
 bun run lint:fix
 ```
 
+## Worktree Workflow
+
+- Use an isolated Git worktree by default for code and documentation changes in this repository.
+- Keep the main checkout unchanged unless the user explicitly requests in-place edits.
+- Before creating a worktree, run `git worktree list` and reuse an existing matching worktree when one exists.
+- Prefer `.worktrees/<plan-basename>` for the worktree path and `<repo-prefix>/<plan-basename>` for its branch when a plan exists. With no plan, use the topic alone; never use agent names.
+
 ## Architecture
 
 The project has dual runtime compatibility - works with both Bun and Node.js:

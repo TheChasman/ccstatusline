@@ -143,6 +143,17 @@ describe('ThinkingEffortWidget', () => {
             expect(result).toBe('Thinking: max');
         });
 
+        it('shows a dash instead of the effort when the model is Auto Model', () => {
+            const result = render({
+                statusData: {
+                    model: { display_name: 'Auto Model' },
+                    effort: { level: 'high' },
+                    thinking_effort: 'high'
+                }
+            });
+            expect(result).toBe('Thinking: -');
+        });
+
         it('returns raw status JSON effort when requested', () => {
             const result = render({
                 rawValue: true,
@@ -418,6 +429,20 @@ describe('ThinkingEffortWidget', () => {
 
             const result = widget.getDynamicColors(item, context, DEFAULT_SETTINGS);
             expect(result).toEqual({ color: getTrafficLightColor('orange', DEFAULT_SETTINGS.colorLevel) });
+        });
+
+        it('returns dark gray for Auto Model', () => {
+            const widget = new ThinkingEffortWidget();
+            const context: RenderContext = {
+                data: {
+                    model: { display_name: 'Auto Model' },
+                    thinking_effort: 'high'
+                }
+            };
+            const item: WidgetItem = { id: '1', type: 'thinking-effort' };
+
+            const result = widget.getDynamicColors(item, context, DEFAULT_SETTINGS);
+            expect(result).toEqual({ color: 'brightBlack' });
         });
 
         it('returns red background + bold white for max effort (normal mode)', () => {
