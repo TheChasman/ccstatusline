@@ -1,4 +1,4 @@
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import {
     beforeEach,
     describe,
@@ -10,17 +10,35 @@ import {
 import type { RenderContext } from '../../types/RenderContext';
 import { DEFAULT_SETTINGS } from '../../types/Settings';
 import type { WidgetItem } from '../../types/Widget';
+import { expectGitExecOptions } from '../../utils/__tests__/git-test-helpers';
 import { clearGitCache } from '../../utils/git';
 import { GitChangesWidget } from '../GitChanges';
 
-vi.mock('child_process', () => ({ execSync: vi.fn() }));
+vi.mock('child_process', () => ({
+    execSync: vi.fn(),
+    execFileSync: vi.fn(),
+    spawnSync: vi.fn()
+}));
 
-const mockExecSync = execSync as unknown as {
+const mockExecFileSync = execFileSync as unknown as {
     mock: { calls: unknown[][] };
     mockImplementation: (impl: () => never) => void;
     mockReturnValue: (value: string) => void;
     mockReturnValueOnce: (value: string) => void;
 };
+
+/**
+ * Responses are keyed by git sub-command because the branch-aware change
+ * counter issues a variable number of commands depending on the branch state.
+ */
+function setupGitResponses(responses: Record<string, string>) {
+    mockExecFileSync.mockImplementation(((_file: string, args: string[]) => {
+        const sub = args.join(' ');
+        if (Object.prototype.hasOwnProperty.call(responses, sub))
+            return responses[sub];
+        throw new Error(`unexpected git call: ${sub}`);
+    }) as unknown as () => never);
+}
 
 function render(options: {
     cwd?: string;
@@ -52,60 +70,57 @@ describe('GitChangesWidget', () => {
     });
 
     it('should render cumulative changes for the current branch vs default', () => {
-        mockExecSync.mockImplementation(((cmd: string) => {
-            const sub = cmd.replace(/^git\s+/, '');
-            const table: Record<string, string> = {
-                'rev-parse --is-inside-work-tree': 'true\n',
-                'symbolic-ref --short refs/remotes/origin/HEAD': 'origin/main',
-                'rev-parse --abbrev-ref HEAD': 'feat/x',
-                'merge-base HEAD main': 'abc123',
-                'diff abc123 --shortstat': '4 files changed, 5 insertions(+), 5 deletions(-)'
-            };
-            if (sub in table)
-                return table[sub];
-            throw new Error(`unexpected git call: ${sub}`);
-        }) as unknown as () => never);
+        setupGitResponses({
+            'rev-parse --is-inside-work-tree': 'true\n',
+            'symbolic-ref --short refs/remotes/origin/HEAD': 'origin/main',
+            'rev-parse --abbrev-ref HEAD': 'feat/x',
+            'merge-base HEAD main': 'abc123',
+            'diff abc123 --shortstat': '4 files changed, 5 insertions(+), 5 deletions(-)'
+        });
 
         expect(render({ cwd: '/tmp/worktree' })).toBe('(+5,-5)');
-        expect(mockExecSync.mock.calls[0]?.[1]).toEqual({
-            encoding: 'utf8',
-            stdio: ['pipe', 'pipe', 'ignore'],
-            cwd: '/tmp/worktree'
+        expectGitExecOptions(mockExecFileSync.mock.calls[0]?.[2], '/tmp/worktree');
+        expectGitExecOptions(mockExecFileSync.mock.calls[1]?.[2], '/tmp/worktree');
+    });
+
+    it('should render combined staged and unstaged changes on the default branch', () => {
+        setupGitResponses({
+            'rev-parse --is-inside-work-tree': 'true\n',
+            'symbolic-ref --short refs/remotes/origin/HEAD': 'origin/main',
+            'rev-parse --abbrev-ref HEAD': 'main',
+            'diff --shortstat': '1 file changed, 2 insertions(+), 1 deletion(-)',
+            'diff --cached --shortstat': '1 file changed, 3 insertions(+), 4 deletions(-)'
         });
+
+        expect(render({ cwd: '/tmp/worktree' })).toBe('(+5,-5)');
     });
 
     it('should render zero counts when repo is clean', () => {
-        mockExecSync.mockImplementation(((cmd: string) => {
-            const sub = cmd.replace(/^git\s+/, '');
-            const table: Record<string, string> = {
-                'rev-parse --is-inside-work-tree': 'true\n',
-                'symbolic-ref --short refs/remotes/origin/HEAD': 'origin/main',
-                'rev-parse --abbrev-ref HEAD': 'main',
-                'diff --shortstat': '',
-                'diff --cached --shortstat': ''
-            };
-            if (sub in table)
-                return table[sub];
-            throw new Error(`unexpected git call: ${sub}`);
-        }) as unknown as () => never);
+        setupGitResponses({
+            'rev-parse --is-inside-work-tree': 'true\n',
+            'symbolic-ref --short refs/remotes/origin/HEAD': 'origin/main',
+            'rev-parse --abbrev-ref HEAD': 'main',
+            'diff --shortstat': '',
+            'diff --cached --shortstat': ''
+        });
 
         expect(render()).toBe('(+0,-0)');
     });
 
     it('should render no git when probe returns false', () => {
-        mockExecSync.mockReturnValue('false\n');
+        mockExecFileSync.mockReturnValue('false\n');
 
         expect(render()).toBe('(no git)');
     });
 
     it('should hide no git when configured', () => {
-        mockExecSync.mockReturnValue('false\n');
+        mockExecFileSync.mockReturnValue('false\n');
 
         expect(render({ hideNoGit: true })).toBeNull();
     });
 
     it('should render no git when command fails', () => {
-        mockExecSync.mockImplementation(() => { throw new Error('No git'); });
+        mockExecFileSync.mockImplementation(() => { throw new Error('No git'); });
 
         expect(render()).toBe('(no git)');
     });

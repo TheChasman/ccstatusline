@@ -29,9 +29,9 @@ const context: RenderContext = { data: { cwd: '/repo' } };
 describe('HostnameWidget', () => {
     beforeEach(() => {
         vi.restoreAllMocks();
-        mockExecSync = vi.spyOn(childProcess, 'execSync') as unknown as typeof mockExecSync;
-        mockPlatform = vi.spyOn(os, 'platform') as unknown as typeof mockPlatform;
-        mockHostname = vi.spyOn(os, 'hostname') as unknown as typeof mockHostname;
+        mockExecSync = vi.spyOn(childProcess, 'execSync');
+        mockPlatform = vi.spyOn(os, 'platform');
+        mockHostname = vi.spyOn(os, 'hostname');
     });
 
     afterEach(() => {

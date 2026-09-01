@@ -12,6 +12,7 @@ import type {
 } from '../../types/RenderContext';
 import { DEFAULT_SETTINGS } from '../../types/Settings';
 import type { WidgetItem } from '../../types/Widget';
+import { expectGitExecOptions } from '../../utils/__tests__/git-test-helpers';
 import { clearGitCache } from '../../utils/git';
 import { GitDeletionsWidget } from '../GitDeletions';
 
@@ -77,46 +78,51 @@ describe('GitDeletionsWidget', () => {
         expect(render({ isPreview: true })).toBe('-10');
     });
 
+    function setupGitResponses(runner: MockGitCommandRunner, responses: Record<string, string>) {
+        runner.mockImplementation((cmd: string) => {
+            const sub = cmd.replace(/^git\s+/, '');
+            if (Object.prototype.hasOwnProperty.call(responses, sub))
+                return responses[sub] ?? '';
+            throw new Error(`unexpected git call: ${sub}`);
+        });
+    }
+
     it('should render cumulative deletions for the current branch vs default', () => {
         const gitCommandRunner = createGitCommandRunner();
-        gitCommandRunner.mockImplementation((cmd: string) => {
-            const sub = cmd.replace(/^git\s+/, '');
-            const table: Record<string, string> = {
-                'rev-parse --is-inside-work-tree': 'true\n',
-                'symbolic-ref --short refs/remotes/origin/HEAD': 'origin/main',
-                'rev-parse --abbrev-ref HEAD': 'feat/x',
-                'merge-base HEAD main': 'abc123',
-                'diff abc123 --shortstat': '4 files changed, 2 insertions(+), 5 deletions(-)'
-            };
-            const value = table[sub];
-            if (value !== undefined)
-                return value;
-            throw new Error(`unexpected git call: ${sub}`);
+        setupGitResponses(gitCommandRunner, {
+            'rev-parse --is-inside-work-tree': 'true\n',
+            'symbolic-ref --short refs/remotes/origin/HEAD': 'origin/main',
+            'rev-parse --abbrev-ref HEAD': 'feat/x',
+            'merge-base HEAD main': 'abc123',
+            'diff abc123 --shortstat': '4 files changed, 2 insertions(+), 5 deletions(-)'
         });
 
         expect(render({ cwd: '/tmp/worktree', gitCommandRunner })).toBe('-5');
-        expect(gitCommandRunner.calls[0]?.[1]).toEqual({
-            encoding: 'utf8',
-            stdio: ['pipe', 'pipe', 'ignore'],
-            cwd: '/tmp/worktree'
+        expectGitExecOptions(gitCommandRunner.calls[0]?.[1], '/tmp/worktree');
+        expectGitExecOptions(gitCommandRunner.calls[1]?.[1], '/tmp/worktree');
+    });
+
+    it('should render combined staged and unstaged deletions on the default branch', () => {
+        const gitCommandRunner = createGitCommandRunner();
+        setupGitResponses(gitCommandRunner, {
+            'rev-parse --is-inside-work-tree': 'true\n',
+            'symbolic-ref --short refs/remotes/origin/HEAD': 'origin/main',
+            'rev-parse --abbrev-ref HEAD': 'main',
+            'diff --shortstat': '1 file changed, 2 insertions(+), 1 deletion(-)',
+            'diff --cached --shortstat': '1 file changed, 3 insertions(+), 4 deletions(-)'
         });
+
+        expect(render({ cwd: '/tmp/worktree', gitCommandRunner })).toBe('-5');
     });
 
     it('should render zero count when repo is clean', () => {
         const gitCommandRunner = createGitCommandRunner();
-        gitCommandRunner.mockImplementation((cmd: string) => {
-            const sub = cmd.replace(/^git\s+/, '');
-            const table: Record<string, string> = {
-                'rev-parse --is-inside-work-tree': 'true\n',
-                'symbolic-ref --short refs/remotes/origin/HEAD': 'origin/main',
-                'rev-parse --abbrev-ref HEAD': 'main',
-                'diff --shortstat': '',
-                'diff --cached --shortstat': ''
-            };
-            const value = table[sub];
-            if (value !== undefined)
-                return value;
-            throw new Error(`unexpected git call: ${sub}`);
+        setupGitResponses(gitCommandRunner, {
+            'rev-parse --is-inside-work-tree': 'true\n',
+            'symbolic-ref --short refs/remotes/origin/HEAD': 'origin/main',
+            'rev-parse --abbrev-ref HEAD': 'main',
+            'diff --shortstat': '',
+            'diff --cached --shortstat': ''
         });
 
         expect(render({ gitCommandRunner })).toBe('-0');

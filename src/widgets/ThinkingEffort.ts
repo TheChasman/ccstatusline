@@ -7,34 +7,29 @@ import type {
     WidgetItem
 } from '../types/Widget';
 import { loadClaudeSettingsSync } from '../utils/claude-settings';
-import { getTranscriptThinkingEffort } from '../utils/jsonl';
+import {
+    getTranscriptThinkingEffort,
+    normalizeThinkingEffort,
+    type ResolvedThinkingEffort,
+    type TranscriptThinkingEffort
+} from '../utils/jsonl';
 import {
     getTrafficLightColor,
     type TrafficLightColor
 } from '../utils/traffic-light';
 
-export type ThinkingEffortLevel = 'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'auto';
+export type ThinkingEffortLevel = TranscriptThinkingEffort;
 
-/**
- * Resolve thinking effort from transcript and settings.
- */
-function normalizeThinkingEffort(value: string | undefined): ThinkingEffortLevel | undefined {
-    if (!value) {
+function resolveThinkingEffortFromStatusJson(context: RenderContext): ResolvedThinkingEffort | null | undefined {
+    const effort = context.data?.effort;
+    if (!effort || !('level' in effort)) {
         return undefined;
     }
 
-    const normalized = value.toLowerCase();
-    if (
-        normalized === 'low' || normalized === 'medium' || normalized === 'high'
-        || normalized === 'xhigh' || normalized === 'max' || normalized === 'auto'
-    ) {
-        return normalized;
-    }
-
-    return undefined;
+    return typeof effort.level === 'string' ? normalizeThinkingEffort(effort.level) : null;
 }
 
-function resolveThinkingEffortFromSettings(): ThinkingEffortLevel | undefined {
+function resolveThinkingEffortFromSettings(): ResolvedThinkingEffort | undefined {
     try {
         const settings = loadClaudeSettingsSync({ logErrors: false });
         return normalizeThinkingEffort(settings.effortLevel);
@@ -45,15 +40,27 @@ function resolveThinkingEffortFromSettings(): ThinkingEffortLevel | undefined {
     return undefined;
 }
 
-function resolveThinkingEffort(context: RenderContext): ThinkingEffortLevel {
+function resolveThinkingEffort(context: RenderContext): ResolvedThinkingEffort | null {
+    const statusEffort = resolveThinkingEffortFromStatusJson(context);
+    if (statusEffort !== undefined) {
+        return statusEffort;
+    }
+
     return getTranscriptThinkingEffort(context.data?.transcript_path)
         ?? resolveThinkingEffortFromSettings()
-        ?? 'medium';
+        ?? null;
+}
+
+function formatEffort(resolved: ResolvedThinkingEffort | null): string {
+    if (!resolved) {
+        return 'default';
+    }
+    return resolved.known ? resolved.value : `${resolved.value}?`;
 }
 
 export class ThinkingEffortWidget implements Widget {
     getDefaultColor(): string { return 'magenta'; }
-    getDescription(): string { return 'Displays the current thinking effort level (low, medium, high, xhigh, max, auto).\nMay be incorrect when multiple Claude Code sessions are running due to current Claude Code limitations.'; }
+    getDescription(): string { return 'Displays the current thinking effort level (low, medium, high, xhigh, max, auto).\nClaude Code reports Ultracode as xhigh in status line data; Ultracode is not exposed as a separate effort level.\nUnknown levels are shown with a trailing "?" (e.g. "super-max?").\nMay be incorrect when multiple Claude Code sessions are running due to current Claude Code limitations.'; }
     getDisplayName(): string { return 'Thinking Effort'; }
     getCategory(): string { return 'Core'; }
     getEditorDisplay(item: WidgetItem): WidgetEditorDisplay {
@@ -65,8 +72,8 @@ export class ThinkingEffortWidget implements Widget {
             return item.rawValue ? 'high' : 'Eff: high';
         }
 
-        const effort = resolveThinkingEffort(context);
-        return item.rawValue ? effort : `Eff: ${effort}`;
+        const effort = formatEffort(resolveThinkingEffort(context));
+        return item.rawValue ? effort : `Thinking: ${effort}`;
     }
 
     getDynamicColors(
@@ -74,14 +81,20 @@ export class ThinkingEffortWidget implements Widget {
         context: RenderContext,
         settings: Settings
     ): DynamicColors | null {
-        let effortLevel: ThinkingEffortLevel;
+        let resolved: ResolvedThinkingEffort | null;
 
         if (context.data?.thinking_effort) {
             const normalized = normalizeThinkingEffort(context.data.thinking_effort as string);
-            effortLevel = normalized ?? resolveThinkingEffort(context);
+            resolved = normalized ?? resolveThinkingEffort(context);
         } else {
-            effortLevel = resolveThinkingEffort(context);
+            resolved = resolveThinkingEffort(context);
         }
+
+        if (!resolved) {
+            return null;
+        }
+
+        const effortLevel = resolved.value;
 
         if (effortLevel === 'max') {
             return {
@@ -101,14 +114,19 @@ export class ThinkingEffortWidget implements Widget {
             return { color: getTrafficLightColor('purple', settings.colorLevel) };
         }
 
-        const trafficMap: Record<'low' | 'medium' | 'high' | 'xhigh', TrafficLightColor> = {
+        const trafficMap: Readonly<Record<string, TrafficLightColor | undefined>> = {
             low: 'green',
             medium: 'yellow',
             high: 'orange',
             xhigh: 'red'
         };
 
-        const color = getTrafficLightColor(trafficMap[effortLevel], settings.colorLevel);
+        const mappedColor = trafficMap[effortLevel];
+        if (!mappedColor) {
+            return null;
+        }
+
+        const color = getTrafficLightColor(mappedColor, settings.colorLevel);
 
         if (settings.powerline.enabled) {
             return {

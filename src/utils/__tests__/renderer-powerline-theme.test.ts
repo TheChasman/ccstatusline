@@ -62,4 +62,51 @@ describe('renderer powerline theme carry-over', () => {
 
         expect(line).toContain(getColorAnsiCode('hex:BF616A', 'truecolor', true));
     });
+
+    it('keeps theme colors when a widget supplies only a dynamic bold style', () => {
+        const settings = createSettings(false);
+        const widgets: WidgetItem[] = [{
+            id: 'auto-effort',
+            type: 'auto-effort-mode'
+        }];
+        const context: RenderContext = { isPreview: true };
+        const preRenderedLines = preRenderAllWidgets([widgets], settings, context);
+        const preCalculatedMaxWidths = calculateMaxWidthsFromPreRendered(preRenderedLines, settings);
+
+        const line = renderStatusLine(
+            widgets,
+            settings,
+            context,
+            preRenderedLines[0] ?? [],
+            preCalculatedMaxWidths
+        );
+
+        expect(line).toContain(getColorAnsiCode('hex:BF616A', 'truecolor', true));
+        expect(line).toContain('\x1b[1m');
+    });
+
+    it('applies a solid global foreground override after dynamic styles', () => {
+        const settings = {
+            ...createSettings(false),
+            overrideForegroundColor: 'red'
+        };
+        const widgets: WidgetItem[] = [{
+            id: 'auto-effort',
+            type: 'auto-effort-mode'
+        }];
+        const context: RenderContext = { isPreview: true };
+        const preRenderedLines = preRenderAllWidgets([widgets], settings, context);
+        const preCalculatedMaxWidths = calculateMaxWidthsFromPreRendered(preRenderedLines, settings);
+
+        const line = renderStatusLine(
+            widgets,
+            settings,
+            context,
+            preRenderedLines[0] ?? [],
+            preCalculatedMaxWidths
+        );
+
+        expect(line).toContain(getColorAnsiCode('red', 'truecolor'));
+        expect(line).toContain('\x1b[1m');
+    });
 });

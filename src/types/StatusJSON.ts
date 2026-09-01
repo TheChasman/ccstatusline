@@ -19,6 +19,8 @@ const RateLimitPeriodSchema = z.object({
     resets_at: CoercedNumberSchema.nullable().optional() // Unix epoch seconds
 });
 
+export type RateLimitPeriod = z.infer<typeof RateLimitPeriodSchema>;
+
 export const StatusJSONSchema = z.looseObject({
     hook_event_name: z.string().optional(),
     session_id: z.string().optional(),
@@ -37,6 +39,7 @@ export const StatusJSONSchema = z.looseObject({
     }).optional(),
     version: z.string().optional(),
     output_style: z.object({ name: z.string().optional() }).optional(),
+    effort: z.object({ level: z.string().nullable().optional() }).nullable().optional(),
     cost: z.object({
         total_cost_usd: CoercedNumberSchema.optional(),
         total_duration_ms: CoercedNumberSchema.optional(),
@@ -70,7 +73,9 @@ export const StatusJSONSchema = z.looseObject({
     }).nullable().optional(),
     rate_limits: z.object({
         five_hour: RateLimitPeriodSchema.optional(),
-        seven_day: RateLimitPeriodSchema.optional()
+        seven_day: RateLimitPeriodSchema.optional(),
+        seven_day_sonnet: RateLimitPeriodSchema.nullable().optional(),
+        seven_day_opus: RateLimitPeriodSchema.nullable().optional()
     }).nullable().optional()
 });
 

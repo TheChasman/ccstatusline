@@ -24,8 +24,9 @@ const SAMPLE_PR = {
 
 function createDeps(overrides: Partial<GitPrWidgetDeps> = {}): GitPrWidgetDeps {
     return {
-        fetchPrData: () => SAMPLE_PR,
+        getCachedGitReviewData: () => SAMPLE_PR,
         getProcessCwd: () => '/tmp/process-cwd',
+        getRemoteInfo: () => null,
         isInsideGitWorkTree: () => true,
         resolveGitCwd: context => context.data?.cwd,
         ...overrides
@@ -39,6 +40,7 @@ function render(
         hideStatus?: boolean;
         hideTitle?: boolean;
         isPreview?: boolean;
+        needsChecks?: boolean;
         rawValue?: boolean;
     } = {},
     depOverrides: Partial<GitPrWidgetDeps> = {}
@@ -46,6 +48,7 @@ function render(
     const widget = new GitPrWidget(createDeps(depOverrides));
     const context: RenderContext = {
         data: options.cwd ? { cwd: options.cwd } : undefined,
+        gitReviewNeedsChecks: options.needsChecks,
         isPreview: options.isPreview
     };
     const metadata: Record<string, string> = {};
@@ -57,10 +60,10 @@ function render(
         metadata.hideTitle = 'true';
 
     const item: WidgetItem = {
-        id: 'git-pr',
+        id: 'git-review',
         metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
         rawValue: options.rawValue,
-        type: 'git-pr'
+        type: 'git-review'
     };
 
     return widget.render(item, context, DEFAULT_SETTINGS);
@@ -112,16 +115,16 @@ describe('GitPrWidget', () => {
 
     it('should return (no PR) when PR lookup returns null', () => {
         expect(render({}, {
-            fetchPrData: () => null,
+            getCachedGitReviewData: () => null,
             resolveGitCwd: () => undefined
         })).toBe('(no PR)');
     });
 
     it('should use process cwd when repo paths are omitted', () => {
-        const fetchPrData = vi.fn(() => SAMPLE_PR);
+        const getCachedGitReviewData = vi.fn(() => SAMPLE_PR);
 
         const result = render({}, {
-            fetchPrData,
+            getCachedGitReviewData,
             getProcessCwd: () => '/tmp/process-cwd',
             resolveGitCwd: () => undefined
         });
@@ -129,7 +132,15 @@ describe('GitPrWidget', () => {
         expect(result).toBe(
             `${renderOsc8Link('https://github.com/owner/repo/pull/123', 'PR #123')} OPEN Fix authentication bug`
         );
-        expect(fetchPrData).toHaveBeenCalledWith('/tmp/process-cwd');
+        expect(getCachedGitReviewData).toHaveBeenCalledWith('/tmp/process-cwd', { includeChecks: false });
+    });
+
+    it('should request checks when a CI widget shares the render context', () => {
+        const getCachedGitReviewData = vi.fn(() => SAMPLE_PR);
+
+        render({ cwd: '/tmp/repo', needsChecks: true }, { getCachedGitReviewData });
+
+        expect(getCachedGitReviewData).toHaveBeenCalledWith('/tmp/repo', { includeChecks: true });
     });
 
     it('should truncate long titles', () => {
@@ -138,17 +149,17 @@ describe('GitPrWidget', () => {
             title: 'This is a very long pull request title that exceeds the default limit'
         };
 
-        const result = render({ cwd: '/tmp/repo' }, { fetchPrData: () => longPr });
+        const result = render({ cwd: '/tmp/repo' }, { getCachedGitReviewData: () => longPr });
         expect(result).toContain('This is a very long pull requ\u2026');
     });
 
     it('should render MERGED status', () => {
-        expect(render({ cwd: '/tmp/repo' }, { fetchPrData: () => ({ ...SAMPLE_PR, state: 'MERGED' }) })).toContain('MERGED');
+        expect(render({ cwd: '/tmp/repo' }, { getCachedGitReviewData: () => ({ ...SAMPLE_PR, state: 'MERGED' }) })).toContain('MERGED');
     });
 
     it('should render APPROVED status', () => {
         expect(render({ cwd: '/tmp/repo' }, {
-            fetchPrData: () => ({
+            getCachedGitReviewData: () => ({
                 ...SAMPLE_PR,
                 reviewDecision: 'APPROVED',
                 state: 'OPEN'
@@ -158,11 +169,88 @@ describe('GitPrWidget', () => {
 
     it('should render CHANGES_REQ status', () => {
         expect(render({ cwd: '/tmp/repo' }, {
-            fetchPrData: () => ({
+            getCachedGitReviewData: () => ({
                 ...SAMPLE_PR,
                 reviewDecision: 'CHANGES_REQUESTED',
                 state: 'OPEN'
             })
         })).toContain('CHANGES_REQ');
+    });
+
+    it('should render "MR #N" for GitLab PR URLs', () => {
+        const gitlabPr = {
+            ...SAMPLE_PR,
+            url: 'https://gitlab.com/owner/repo/-/merge_requests/123'
+        };
+        expect(render({ cwd: '/tmp/repo' }, { getCachedGitReviewData: () => gitlabPr })).toBe(
+            `${renderOsc8Link('https://gitlab.com/owner/repo/-/merge_requests/123', 'MR #123')} OPEN Fix authentication bug`
+        );
+    });
+
+    it('should render raw "#N" regardless of forge', () => {
+        const gitlabPr = {
+            ...SAMPLE_PR,
+            url: 'https://gitlab.com/owner/repo/-/merge_requests/123'
+        };
+        expect(render({ cwd: '/tmp/repo', rawValue: true }, { getCachedGitReviewData: () => gitlabPr })).toBe(
+            `${renderOsc8Link('https://gitlab.com/owner/repo/-/merge_requests/123', '#123')} OPEN Fix authentication bug`
+        );
+    });
+
+    it('should return (no MR) when origin is GitLab and no MR exists', () => {
+        expect(render({ cwd: '/tmp/repo' }, {
+            getCachedGitReviewData: () => null,
+            getRemoteInfo: () => ({
+                name: 'origin',
+                url: 'git@gitlab.com:owner/repo.git',
+                host: 'gitlab.com',
+                owner: 'owner',
+                repo: 'repo'
+            })
+        })).toBe('(no MR)');
+    });
+
+    it('should keep "PR #N" for GitHub PR URLs (regression guard)', () => {
+        expect(render({ cwd: '/tmp/repo' })).toBe(
+            `${renderOsc8Link('https://github.com/owner/repo/pull/123', 'PR #123')} OPEN Fix authentication bug`
+        );
+    });
+
+    it('should render "MR #N" for self-hosted GitLab via URL pattern when provider field is missing', () => {
+        const legacyCacheEntry = {
+            number: 1626,
+            reviewDecision: '',
+            state: 'OPEN',
+            title: 'Add optional wallet type field',
+            url: 'https://git.example.com/group/project/-/merge_requests/1626'
+        };
+        expect(render({ cwd: '/tmp/repo' }, { getCachedGitReviewData: () => legacyCacheEntry })).toBe(
+            `${renderOsc8Link('https://git.example.com/group/project/-/merge_requests/1626', 'MR #1626')} OPEN Add optional wallet type field`
+        );
+    });
+
+    it('should render "MR #N" for self-hosted GitLab based on provider, not URL', () => {
+        const selfHostedMr = {
+            ...SAMPLE_PR,
+            number: 7,
+            url: 'https://git.example.com/team/repo/-/merge_requests/7',
+            provider: 'glab' as const
+        };
+        expect(render({ cwd: '/tmp/repo' }, { getCachedGitReviewData: () => selfHostedMr })).toBe(
+            `${renderOsc8Link('https://git.example.com/team/repo/-/merge_requests/7', 'MR #7')} OPEN Fix authentication bug`
+        );
+    });
+
+    it('should fall back to (no PR) when the origin host name does not identify the forge', () => {
+        expect(render({ cwd: '/tmp/repo' }, {
+            getCachedGitReviewData: () => null,
+            getRemoteInfo: () => ({
+                name: 'origin',
+                url: 'git@git.example.com:team/repo.git',
+                host: 'git.example.com',
+                owner: 'team',
+                repo: 'repo'
+            })
+        })).toBe('(no PR)');
     });
 });

@@ -12,10 +12,17 @@ export interface RenderUsageData {
     sessionResetAt?: string;
     weeklyUsage?: number;
     weeklyResetAt?: string;
+    weeklySonnetUsage?: number;
+    weeklySonnetResetAt?: string;
+    weeklyOpusUsage?: number;
+    weeklyOpusResetAt?: string;
+    fableUsage?: number;
+    fableResetAt?: string;
     extraUsageEnabled?: boolean;
     extraUsageLimit?: number;
     extraUsageUsed?: number;
     extraUsageUtilization?: number;
+    extraUsageCurrency?: string;
     error?: 'no-credentials' | 'timeout' | 'rate-limited' | 'api-error' | 'parse-error';
 }
 
@@ -23,9 +30,17 @@ export interface GitCommandOptions {
     encoding: BufferEncoding;
     stdio: ['pipe', 'pipe', 'ignore'];
     cwd?: string;
+    env?: NodeJS.ProcessEnv;
+    windowsHide?: boolean;
 }
 
 export type GitCommandRunner = (command: string, options: GitCommandOptions) => string;
+
+export interface CompactionData {
+    count: number;
+    byTrigger: { auto: number; manual: number; unknown: number };
+    tokensReclaimed: number;
+}
 
 export interface RenderContext {
     data?: StatusJSON;
@@ -36,9 +51,12 @@ export interface RenderContext {
     sessionDuration?: string | null;
     blockMetrics?: BlockMetrics | null;
     skillsMetrics?: SkillsMetrics | null;
+    compactionData?: CompactionData | null;
     terminalWidth?: number | null;
     isPreview?: boolean;
     minimalist?: boolean;
+    gitCacheTtlSeconds?: number;
+    gitReviewNeedsChecks?: boolean;
     lineIndex?: number;  // Index of the current line being rendered (for theme cycling)
     globalSeparatorIndex?: number;  // Global separator index that continues across lines
     gitCommandRunner?: GitCommandRunner;
@@ -50,4 +68,5 @@ export interface RenderContext {
         deletions?: number;
     };
     globalPowerlineThemeIndex?: number;  // Global powerline theme index that continues across lines
+    globalPowerlineStartCapIndex?: number;  // Global start cap index across powerline flex segments and lines
 }
