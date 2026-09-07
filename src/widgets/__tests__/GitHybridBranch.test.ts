@@ -31,7 +31,7 @@ function render(options: {
         id: 'git-hybrid-branch',
         type: 'git-hybrid-branch',
         rawValue: options.rawValue,
-        metadata: options.hideNoGit ? { hideNoGit: 'true' } : undefined
+        metadata: options.hideNoGit ? { hide: 'no-git' } : undefined
     };
 
     return widget.render(item, context, DEFAULT_SETTINGS);

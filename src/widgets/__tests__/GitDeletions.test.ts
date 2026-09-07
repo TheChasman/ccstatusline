@@ -51,6 +51,7 @@ function createGitCommandRunner(): MockGitCommandRunner {
 function render(options: {
     cwd?: string;
     gitCommandRunner?: GitCommandRunner;
+    hide?: string;
     hideNoGit?: boolean;
     isPreview?: boolean;
 } = {}) {
@@ -63,7 +64,7 @@ function render(options: {
     const item: WidgetItem = {
         id: 'git-deletions',
         type: 'git-deletions',
-        metadata: options.hideNoGit ? { hideNoGit: 'true' } : undefined
+        metadata: options.hide ? { hide: options.hide } : (options.hideNoGit ? { hide: 'no-git' } : undefined)
     };
 
     return widget.render(item, context, DEFAULT_SETTINGS);
@@ -126,6 +127,32 @@ describe('GitDeletionsWidget', () => {
         });
 
         expect(render({ gitCommandRunner })).toBe('-0');
+    });
+
+    it('should hide zero deletions when the zero state is enabled', () => {
+        const gitCommandRunner = createGitCommandRunner();
+        setupGitResponses(gitCommandRunner, {
+            'rev-parse --is-inside-work-tree': 'true\n',
+            'symbolic-ref --short refs/remotes/origin/HEAD': 'origin/main',
+            'rev-parse --abbrev-ref HEAD': 'main',
+            'diff --shortstat': '',
+            'diff --cached --shortstat': ''
+        });
+
+        expect(render({ hide: 'zero', gitCommandRunner })).toBeNull();
+    });
+
+    it('should keep non-zero deletions visible with the zero state enabled', () => {
+        const gitCommandRunner = createGitCommandRunner();
+        setupGitResponses(gitCommandRunner, {
+            'rev-parse --is-inside-work-tree': 'true\n',
+            'symbolic-ref --short refs/remotes/origin/HEAD': 'origin/main',
+            'rev-parse --abbrev-ref HEAD': 'main',
+            'diff --shortstat': '1 file changed, 2 insertions(+), 1 deletion(-)',
+            'diff --cached --shortstat': ''
+        });
+
+        expect(render({ hide: 'zero', gitCommandRunner })).toBe('-1');
     });
 
     it('should render no git when probe returns false', () => {

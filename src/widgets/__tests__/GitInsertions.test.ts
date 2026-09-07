@@ -42,6 +42,7 @@ function setupGitResponses(responses: Record<string, string>) {
 
 function render(options: {
     cwd?: string;
+    hide?: string;
     hideNoGit?: boolean;
     isPreview?: boolean;
 } = {}) {
@@ -53,7 +54,7 @@ function render(options: {
     const item: WidgetItem = {
         id: 'git-insertions',
         type: 'git-insertions',
-        metadata: options.hideNoGit ? { hideNoGit: 'true' } : undefined
+        metadata: options.hide ? { hide: options.hide } : (options.hideNoGit ? { hide: 'no-git' } : undefined)
     };
 
     return widget.render(item, context, DEFAULT_SETTINGS);
@@ -105,6 +106,30 @@ describe('GitInsertionsWidget', () => {
         });
 
         expect(render()).toBe('+0');
+    });
+
+    it('should hide zero insertions when the zero state is enabled', () => {
+        setupGitResponses({
+            'rev-parse --is-inside-work-tree': 'true\n',
+            'symbolic-ref --short refs/remotes/origin/HEAD': 'origin/main',
+            'rev-parse --abbrev-ref HEAD': 'main',
+            'diff --shortstat': '',
+            'diff --cached --shortstat': ''
+        });
+
+        expect(render({ hide: 'zero' })).toBeNull();
+    });
+
+    it('should keep non-zero insertions visible with the zero state enabled', () => {
+        setupGitResponses({
+            'rev-parse --is-inside-work-tree': 'true\n',
+            'symbolic-ref --short refs/remotes/origin/HEAD': 'origin/main',
+            'rev-parse --abbrev-ref HEAD': 'main',
+            'diff --shortstat': '1 file changed, 2 insertions(+), 1 deletion(-)',
+            'diff --cached --shortstat': ''
+        });
+
+        expect(render({ hide: 'zero' })).toBe('+2');
     });
 
     it('should render no git when probe returns false', () => {

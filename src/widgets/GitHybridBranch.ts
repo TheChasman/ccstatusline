@@ -1,7 +1,7 @@
 import type { RenderContext } from '../types/RenderContext';
 import type { Settings } from '../types/Settings';
 import type {
-    CustomKeybind,
+    HideableState,
     Widget,
     WidgetEditorDisplay,
     WidgetItem
@@ -13,11 +13,9 @@ import {
 } from '../utils/git';
 
 import {
-    getHideNoGitKeybinds,
-    getHideNoGitModifierText,
-    handleToggleNoGitAction,
-    isHideNoGitEnabled
-} from './shared/git-no-git';
+    NO_GIT_HIDEABLE_STATE,
+    isHidden
+} from './shared/hideable';
 
 const HYBRID_SYMBOL = '𖠰⎇';
 
@@ -26,20 +24,17 @@ export class GitHybridBranchWidget implements Widget {
     getDescription(): string { return 'Shows git worktree and branch names without repeated matching values'; }
     getDisplayName(): string { return 'Git Hybrid Branch'; }
     getCategory(): string { return 'Git'; }
-    getEditorDisplay(item: WidgetItem): WidgetEditorDisplay {
-        return {
-            displayText: this.getDisplayName(),
-            modifierText: getHideNoGitModifierText(item)
-        };
+    getEditorDisplay(_item: WidgetItem): WidgetEditorDisplay {
+        return { displayText: this.getDisplayName() };
     }
 
-    handleEditorAction(action: string, item: WidgetItem): WidgetItem | null {
-        return handleToggleNoGitAction(action, item);
+    getHideableStates(): HideableState[] {
+        return [NO_GIT_HIDEABLE_STATE];
     }
 
     render(item: WidgetItem, context: RenderContext, settings: Settings): string | null {
         void settings;
-        const hideNoGit = isHideNoGitEnabled(item);
+        const hideNoGit = isHidden(item, NO_GIT_HIDEABLE_STATE.key);
 
         if (context.isPreview)
             return item.rawValue ? 'main' : `${HYBRID_SYMBOL} main`;
@@ -76,10 +71,6 @@ export class GitHybridBranchWidget implements Widget {
         return runGit('branch --show-current', context);
     }
 
-    getCustomKeybinds(): CustomKeybind[] {
-        return getHideNoGitKeybinds();
-    }
-
     supportsRawValue(): boolean { return true; }
-    supportsColors(item: WidgetItem): boolean { return true; }
+    supportsColors(_item: WidgetItem): boolean { return true; }
 }

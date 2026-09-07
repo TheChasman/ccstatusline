@@ -46,7 +46,11 @@ function resolveThinkingEffort(context: RenderContext): ResolvedThinkingEffort |
         return statusEffort;
     }
 
-    return getTranscriptThinkingEffort(context.data?.transcript_path)
+    const transcriptEffort = context.transcriptThinkingEffort === undefined
+        ? getTranscriptThinkingEffort(context.data?.transcript_path)
+        : context.transcriptThinkingEffort ?? undefined;
+
+    return transcriptEffort
         ?? resolveThinkingEffortFromSettings()
         ?? null;
 }
