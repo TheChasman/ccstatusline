@@ -676,8 +676,7 @@ export interface GitAheadBehind {
     behind: number;
 }
 
-export function getGitAheadBehind(context: RenderContext): GitAheadBehind | null {
-    const output = runGit('rev-list --left-right --count HEAD...@{upstream}', context);
+function parseAheadBehindPair(output: string | null): GitAheadBehind | null {
     if (!output)
         return null;
 
@@ -692,6 +691,25 @@ export function getGitAheadBehind(context: RenderContext): GitAheadBehind | null
         return null;
 
     return { ahead, behind };
+}
+
+export function getGitAheadBehind(context: RenderContext): GitAheadBehind | null {
+    const upstream = parseAheadBehindPair(
+        runGit('rev-list --left-right --count HEAD...@{upstream}', context)
+    );
+    if (upstream)
+        return upstream;
+
+    // No usable upstream output (e.g. the branch has no configured upstream):
+    // fall back to divergence from the repository default branch.
+    const defaultBranch = getDefaultBranch(context);
+    const currentBranch = getCurrentBranch(context);
+    if (!defaultBranch || !currentBranch || currentBranch === defaultBranch)
+        return null;
+
+    return parseAheadBehindPair(
+        runGit(`rev-list --left-right --count HEAD...${defaultBranch}`, context)
+    );
 }
 
 export function getGitConflictCount(context: RenderContext): number {

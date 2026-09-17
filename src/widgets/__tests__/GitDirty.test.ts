@@ -22,14 +22,24 @@ interface WorktreeState {
 
 function createGitCommandRunner(config: {
     insideWorkTree?: boolean;
+    hasUpstream?: boolean;
     ahead?: number;
     behind?: number;
+    defaultBranch?: string;
+    currentBranch?: string;
+    fallbackAhead?: number;
+    fallbackBehind?: number;
     worktrees?: WorktreeState[];
 } = {}): GitCommandRunner {
     const {
         insideWorkTree = true,
+        hasUpstream = true,
         ahead = 0,
         behind = 0,
+        defaultBranch,
+        currentBranch,
+        fallbackAhead = 0,
+        fallbackBehind = 0,
         worktrees = [{ path: '/repo', dirty: false }]
     } = config;
 
@@ -39,8 +49,26 @@ function createGitCommandRunner(config: {
         if (sub === 'rev-parse --is-inside-work-tree')
             return insideWorkTree ? 'true\n' : 'false\n';
 
-        if (sub === 'rev-list --left-right --count HEAD...@{upstream}')
+        if (sub === 'rev-list --left-right --count HEAD...@{upstream}') {
+            if (!hasUpstream)
+                throw new Error('fatal: no upstream configured for branch');
             return `${ahead}\t${behind}\n`;
+        }
+
+        if (defaultBranch && sub === `rev-list --left-right --count HEAD...${defaultBranch}`)
+            return `${fallbackAhead}\t${fallbackBehind}\n`;
+
+        if (sub === 'symbolic-ref --short refs/remotes/origin/HEAD') {
+            if (!defaultBranch)
+                throw new Error(`unexpected git call: ${sub}`);
+            return `origin/${defaultBranch}\n`;
+        }
+
+        if (sub === 'rev-parse --abbrev-ref HEAD') {
+            if (!currentBranch)
+                throw new Error(`unexpected git call: ${sub}`);
+            return `${currentBranch}\n`;
+        }
 
         if (sub === 'worktree list --porcelain') {
             return worktrees
@@ -95,6 +123,30 @@ describe('GitDirtyWidget', () => {
 
     it('shows all parts when only ahead', () => {
         expect(render({ gitCommandRunner: createGitCommandRunner({ ahead: 3, behind: 0 }) })).toBe('↑3↓0●0');
+    });
+
+    it('falls back to the default branch when the feature branch has no upstream', () => {
+        expect(render({
+            gitCommandRunner: createGitCommandRunner({
+                hasUpstream: false,
+                defaultBranch: 'main',
+                currentBranch: 'feature/test',
+                fallbackAhead: 1,
+                fallbackBehind: 0
+            })
+        })).toBe('↑1↓0●0');
+    });
+
+    it('shows zeros on a clean default branch with no upstream', () => {
+        expect(render({
+            gitCommandRunner: createGitCommandRunner({
+                hasUpstream: false,
+                defaultBranch: 'main',
+                currentBranch: 'main',
+                fallbackAhead: 0,
+                fallbackBehind: 0
+            })
+        })).toBe('↑0↓0●0');
     });
 
     it('shows all parts when only behind', () => {
