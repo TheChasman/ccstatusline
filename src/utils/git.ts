@@ -466,7 +466,10 @@ export function getTotalAheadBehind(context: RenderContext): TotalAheadBehind {
 }
 
 export function getDirtyWorktreeCount(context: RenderContext): number {
-    const paths = getWorktreePaths(context);
+    const activeWorktreePath = context.data?.worktree?.path;
+    const paths = typeof activeWorktreePath === 'string' && activeWorktreePath.trim().length > 0
+        ? [activeWorktreePath]
+        : getWorktreePaths(context);
     let count = 0;
     for (const path of paths) {
         const status = runGitInDir('--no-optional-locks status --porcelain', path, context.gitCommandRunner);
@@ -673,8 +676,7 @@ export interface GitAheadBehind {
     behind: number;
 }
 
-export function getGitAheadBehind(context: RenderContext): GitAheadBehind | null {
-    const output = runGit('rev-list --left-right --count HEAD...@{upstream}', context);
+function parseAheadBehindPair(output: string | null): GitAheadBehind | null {
     if (!output)
         return null;
 
@@ -689,6 +691,25 @@ export function getGitAheadBehind(context: RenderContext): GitAheadBehind | null
         return null;
 
     return { ahead, behind };
+}
+
+export function getGitAheadBehind(context: RenderContext): GitAheadBehind | null {
+    const upstream = parseAheadBehindPair(
+        runGit('rev-list --left-right --count HEAD...@{upstream}', context)
+    );
+    if (upstream)
+        return upstream;
+
+    // No usable upstream output (e.g. the branch has no configured upstream):
+    // fall back to divergence from the repository default branch.
+    const defaultBranch = getDefaultBranch(context);
+    const currentBranch = getCurrentBranch(context);
+    if (!defaultBranch || !currentBranch || currentBranch === defaultBranch)
+        return null;
+
+    return parseAheadBehindPair(
+        runGit(`rev-list --left-right --count HEAD...${defaultBranch}`, context)
+    );
 }
 
 export function getGitConflictCount(context: RenderContext): number {

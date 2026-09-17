@@ -32,7 +32,7 @@ const ZERO_HIDEABLE_STATE: HideableState = { key: 'zero', label: 'when not diver
 
 export class GitAheadBehindWidget implements Widget {
     getDefaultColor(): string { return 'cyan'; }
-    getDescription(): string { return 'Shows commits ahead/behind upstream (↑2↓3)'; }
+    getDescription(): string { return 'Shows commits ahead/behind upstream or the default branch (↑2↓3)'; }
     getDisplayName(): string { return 'Git Ahead/Behind'; }
     getCategory(): string { return 'Git'; }
 

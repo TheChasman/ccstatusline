@@ -76,14 +76,36 @@ describe('GitAheadBehindWidget', () => {
     });
 
     it('renders no upstream and hides via the unified state', () => {
-        mockExecFileSync.mockReturnValueOnce('true\n');
-        mockExecFileSync.mockReturnValueOnce('');
+        // No upstream, and the fallback walk finds neither a default branch
+        // nor a current branch: every command in the sequence returns nothing.
+        const stubNoUpstreamSequence = () => {
+            mockExecFileSync.mockReturnValueOnce('true\n');                 // rev-parse --is-inside-work-tree
+            mockExecFileSync.mockReturnValueOnce('');                       // rev-list ...@{upstream}
+            mockExecFileSync.mockReturnValueOnce('');                       // symbolic-ref origin/HEAD
+            mockExecFileSync.mockReturnValueOnce('');                       // rev-parse --verify main
+            mockExecFileSync.mockReturnValueOnce('');                       // rev-parse --verify master
+            mockExecFileSync.mockReturnValueOnce('');                       // rev-parse --abbrev-ref HEAD
+        };
+
+        stubNoUpstreamSequence();
         expect(render()).toBe('(no upstream)');
 
         clearGitCache();
-        mockExecFileSync.mockReturnValueOnce('true\n');
-        mockExecFileSync.mockReturnValueOnce('');
+        stubNoUpstreamSequence();
         expect(render({ metadata: { hide: 'no-upstream' } })).toBeNull();
+    });
+
+    it('falls back to the default branch when the current branch has no upstream', () => {
+        // Real sequence for an upstream-less feature branch: the upstream
+        // rev-list comes back empty, so divergence is resolved against the
+        // repo default branch from origin/HEAD.
+        mockExecFileSync.mockReturnValueOnce('true\n');                     // rev-parse --is-inside-work-tree
+        mockExecFileSync.mockReturnValueOnce('');                           // rev-list ...@{upstream}
+        mockExecFileSync.mockReturnValueOnce('origin/main\n');              // symbolic-ref origin/HEAD
+        mockExecFileSync.mockReturnValueOnce('feature/demo\n');             // rev-parse --abbrev-ref HEAD
+        mockExecFileSync.mockReturnValueOnce('1\t0\n');                     // rev-list HEAD...main
+
+        expect(render()).toBe('↑1');
     });
 
     it('hides when not diverged by default', () => {
