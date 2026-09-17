@@ -138,13 +138,15 @@ describe('GitDirtyWidget', () => {
     });
 
     it('shows zeros on a clean default branch with no upstream', () => {
+        // The fallback rev-list would report 5 ahead / 2 behind; the guard
+        // that skips the fallback when already on the default branch must win.
         expect(render({
             gitCommandRunner: createGitCommandRunner({
                 hasUpstream: false,
                 defaultBranch: 'main',
                 currentBranch: 'main',
-                fallbackAhead: 0,
-                fallbackBehind: 0
+                fallbackAhead: 5,
+                fallbackBehind: 2
             })
         })).toBe('↑0↓0●0');
     });

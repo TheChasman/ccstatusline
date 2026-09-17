@@ -17,7 +17,7 @@ export class GitDirtyWidget implements Widget {
     }
 
     getDescription(): string {
-        return 'Shows outstanding changes: ↑ unpushed and ↓ unpulled on current branch, ● dirty worktree count — absent when clean';
+        return 'Shows outstanding changes: ↑ ahead and ↓ behind on current branch (upstream or default branch), ● dirty worktree count — absent when clean';
     }
 
     getDisplayName(): string {
