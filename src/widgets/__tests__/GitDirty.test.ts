@@ -60,11 +60,15 @@ function createGitCommandRunner(config: {
 function render(options: {
     isPreview?: boolean;
     gitCommandRunner?: GitCommandRunner;
+    worktreePath?: string;
 } = {}) {
     const widget = new GitDirtyWidget();
     const context: RenderContext = {
         isPreview: options.isPreview,
-        data: { cwd: '/repo' },
+        data: {
+            cwd: '/repo',
+            ...(options.worktreePath ? { worktree: { path: options.worktreePath } } : {})
+        },
         gitCommandRunner: options.gitCommandRunner ?? createGitCommandRunner()
     };
     const item: WidgetItem = { id: 'git-dirty', type: 'git-dirty' };
@@ -105,6 +109,18 @@ describe('GitDirtyWidget', () => {
                 worktrees: [{ path: '/repo', dirty: true }]
             })
         })).toBe('↑0↓0●1');
+    });
+
+    it('counts only the active worktree when an explicit path is provided', () => {
+        expect(render({
+            worktreePath: '/active',
+            gitCommandRunner: createGitCommandRunner({
+                worktrees: [
+                    { path: '/repo', dirty: true },
+                    { path: '/active', dirty: false }
+                ]
+            })
+        })).toBe('↑0↓0●0');
     });
 
     it('shows all three parts when all are non-zero', () => {
