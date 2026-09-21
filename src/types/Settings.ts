@@ -69,7 +69,7 @@ export const SettingsSchema = z.object({
                 { id: '12', type: 'context-bar', color: 'dimYellow' }
             ]
         ]), // Ensure max 3 lines
-    flexMode: FlexModeSchema.default('full-minus-40'),
+    flexMode: FlexModeSchema.default('full'),
     compactThreshold: z.number().min(1).max(99).default(60),
     colorLevel: ColorLevelSchema.default(2),
     defaultSeparator: z.string().optional(),
@@ -81,6 +81,12 @@ export const SettingsSchema = z.object({
     globalBold: z.boolean().default(false),
     numberFormat: GlobalNumberFormatSchema.optional(),
     gitCacheTtlSeconds: z.number().min(0).max(60).default(5),
+    // How long a "no TTY" result is reused for the same session, in seconds.
+    // Detected widths are re-probed each render so terminal resizes take effect.
+    // NOTE: 0 disables the cache (always probe). This deliberately differs from
+    // gitCacheTtlSeconds above, where 0 means "never expire".
+    terminalWidthCacheTtlSeconds: z.number().min(0).max(300).default(5),
+    customCommandCacheTtlSeconds: z.number().min(0).max(60).default(0),
     minimalistMode: z.boolean().default(false),
     powerline: PowerlineConfigSchema.default({
         enabled: false,
