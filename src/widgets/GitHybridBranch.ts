@@ -53,7 +53,11 @@ export class GitHybridBranchWidget implements Widget {
     }
 
     private formatValue(worktree: string | null, branch: string | null, rawValue: boolean): string | null {
-        if (worktree && branch && worktree !== branch) {
+        if (worktree && branch && (worktree === branch || branch.endsWith(`/${worktree}`))) {
+            return rawValue ? branch : `${HYBRID_SYMBOL} ${branch}`;
+        }
+
+        if (worktree && branch) {
             return rawValue
                 ? `${worktree} (${branch})`
                 : `𖠰${worktree} (⎇${branch})`;

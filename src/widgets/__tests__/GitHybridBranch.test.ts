@@ -67,6 +67,14 @@ describe('GitHybridBranchWidget', () => {
         expect(render({ rawValue: true })).toBe('feature/demo');
     });
 
+    it('should collapse a worktree that matches the branch after its prefix', () => {
+        mockGitRunner.mockReturnValueOnce('true\n');
+        mockGitRunner.mockReturnValueOnce('feature/demo');
+        mockGitRunner.mockReturnValueOnce('/repo/.git/worktrees/demo');
+
+        expect(render()).toBe('𖠰⎇ feature/demo');
+    });
+
     it('should render different branch and worktree values in parens', () => {
         mockGitRunner.mockReturnValueOnce('true\n');
         mockGitRunner.mockReturnValueOnce('feature/demo');
