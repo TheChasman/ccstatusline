@@ -32,8 +32,7 @@ export class GitHybridBranchWidget implements Widget {
         return [NO_GIT_HIDEABLE_STATE];
     }
 
-    render(item: WidgetItem, context: RenderContext, settings: Settings): string | null {
-        void settings;
+    render(item: WidgetItem, context: RenderContext, _settings: Settings): string | null {
         const hideNoGit = isHidden(item, NO_GIT_HIDEABLE_STATE.key);
 
         if (context.isPreview)

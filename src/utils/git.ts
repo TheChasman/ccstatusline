@@ -367,7 +367,6 @@ export function runGitArgs(args: string[], context: RenderContext, cacheCommand?
                 encoding: 'utf8',
                 stdio: ['pipe', 'pipe', 'ignore'],
                 env: { ...process.env, GIT_OPTIONAL_LOCKS: '0' },
-                timeout: GIT_COMMAND_TIMEOUT_MS,
                 windowsHide: true,
                 ...(cwd ? { cwd } : {})
             };
