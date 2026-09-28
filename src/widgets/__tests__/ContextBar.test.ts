@@ -173,14 +173,27 @@ describe('ContextBarWidget', () => {
         expect(widget.getDynamicColors(slider, contextFor(70000), DEFAULT_SETTINGS)?.backgroundColor).toContain('196');
     });
 
+    it('renders the rail alone in rail-only mode', () => {
+        const railOnly = { ...item, metadata: { display: 'rail-only' } };
+
+        expect(getVisibleText(widget.render(railOnly, contextFor(15000, 100000), DEFAULT_SETTINGS) ?? ''))
+            .toBe(`Ctxt: ┃${'⣿'.repeat(3)}⣧${'⣀'.repeat(21)}┃`);
+        expect(getVisibleText(widget.render({ ...railOnly, rawValue: true }, contextFor(5000), DEFAULT_SETTINGS) ?? ''))
+            .toMatch(/^┃.{25}┃$/u);
+        expect(getVisibleText(widget.render(railOnly, { isPreview: true }, DEFAULT_SETTINGS) ?? ''))
+            .toMatch(/^Ctxt: ┃.{25}┃$/u);
+        expect(widget.render(railOnly, { ...contextFor(5000), contextBarWidth: 0 }, DEFAULT_SETTINGS)).toBeNull();
+    });
+
     it('cycles display modes and formats the preview', () => {
         const first = widget.handleEditorAction('toggle-progress', item);
         const second = widget.handleEditorAction('toggle-progress', first ?? item);
         const third = widget.handleEditorAction('toggle-progress', second ?? item);
         const fourth = widget.handleEditorAction('toggle-progress', third ?? item);
+        const fifth = widget.handleEditorAction('toggle-progress', fourth ?? item);
 
-        expect([first, second, third, fourth].map(next => next?.metadata?.display))
-            .toEqual(['progress', 'slider', 'slider-only', 'progress-short']);
+        expect([first, second, third, fourth, fifth].map(next => next?.metadata?.display))
+            .toEqual(['progress', 'rail-only', 'slider', 'slider-only', 'progress-short']);
         expect(getVisibleText(widget.render({ ...item, numberFormat: { decimals: 2 } }, { isPreview: true }, DEFAULT_SETTINGS) ?? ''))
             .toMatch(/^Ctxt: ┃.{25}┃ 50\.00k\/200\.00k \(25\.00%\)$/u);
     });

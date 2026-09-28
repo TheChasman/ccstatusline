@@ -27,11 +27,11 @@ import { getTrafficLightColor } from '../utils/traffic-light';
 
 import { makeSliderBar } from './shared/usage-display';
 
-type DisplayMode = 'progress' | 'progress-short' | 'slider' | 'slider-only';
+type DisplayMode = 'progress' | 'progress-short' | 'rail-only' | 'slider' | 'slider-only';
 
 function getDisplayMode(item: WidgetItem): DisplayMode {
     const mode = item.metadata?.display;
-    if (mode === 'progress' || mode === 'slider' || mode === 'slider-only') {
+    if (mode === 'progress' || mode === 'rail-only' || mode === 'slider' || mode === 'slider-only') {
         return mode;
     }
     return 'progress-short';
@@ -105,6 +105,8 @@ export class ContextBarWidget implements Widget {
 
         if (mode === 'progress-short') {
             modifiers.push('medium bar');
+        } else if (mode === 'rail-only') {
+            modifiers.push('rail only');
         } else if (mode === 'slider') {
             modifiers.push('short bar');
         } else if (mode === 'slider-only') {
@@ -126,10 +128,12 @@ export class ContextBarWidget implements Widget {
         const nextMode: DisplayMode = currentMode === 'progress-short'
             ? 'progress'
             : currentMode === 'progress'
-                ? 'slider'
-                : currentMode === 'slider'
-                    ? 'slider-only'
-                    : 'progress-short';
+                ? 'rail-only'
+                : currentMode === 'rail-only'
+                    ? 'slider'
+                    : currentMode === 'slider'
+                        ? 'slider-only'
+                        : 'progress-short';
 
         return {
             ...item,
@@ -156,6 +160,8 @@ export class ContextBarWidget implements Widget {
             }
             const barWidth = context.contextBarWidths?.[item.id] ?? context.contextBarWidth ?? resolveBrailleBarWidth(item.metadata);
             const rail = renderBrailleRail(50000, 200000, barWidth, item, settings);
+            if (displayMode === 'rail-only')
+                return rail ? (item.rawValue ? rail : `Ctxt: ${rail}`) : null;
             const previewDisplay = `${rail ? `${rail} ` : ''}${usedDisplay}/${totalDisplay} (${percentDisplay})`;
             return item.rawValue ? previewDisplay : `Ctxt: ${previewDisplay}`;
         }
@@ -196,6 +202,8 @@ export class ContextBarWidget implements Widget {
 
         const barWidth = context.contextBarWidths?.[item.id] ?? context.contextBarWidth ?? resolveBrailleBarWidth(item.metadata);
         const rail = renderBrailleRail(used, total, barWidth, item, settings);
+        if (displayMode === 'rail-only')
+            return rail ? (item.rawValue ? rail : `Ctxt: ${rail}`) : null;
         const display = `${rail ? `${rail} ` : ''}${usedDisplay}/${totalDisplay} (${percentDisplay})`;
 
         return item.rawValue ? display : `Ctxt: ${display}`;
