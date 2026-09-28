@@ -55,11 +55,23 @@ function resolveThinkingEffort(context: RenderContext): ResolvedThinkingEffort |
         ?? null;
 }
 
+const EFFORT_ABBREVIATIONS: Readonly<Record<string, string | undefined>> = {
+    low: 'L',
+    medium: 'M',
+    high: 'H',
+    xhigh: 'XH',
+    max: 'MAX',
+    auto: 'A'
+};
+
 function formatEffort(resolved: ResolvedThinkingEffort | null): string {
     if (!resolved) {
-        return 'default';
+        return 'D';
     }
-    return resolved.known ? resolved.value : `${resolved.value}?`;
+    if (!resolved.known) {
+        return `${resolved.value}?`;
+    }
+    return EFFORT_ABBREVIATIONS[resolved.value] ?? resolved.value;
 }
 
 function isAutoModel(context: RenderContext): boolean {
@@ -73,7 +85,7 @@ function isAutoModel(context: RenderContext): boolean {
 
 export class ThinkingEffortWidget implements Widget {
     getDefaultColor(): string { return 'magenta'; }
-    getDescription(): string { return 'Displays the current thinking effort level (low, medium, high, xhigh, max, auto).\nClaude Code reports Ultracode as xhigh in status line data; Ultracode is not exposed as a separate effort level.\nUnknown levels are shown with a trailing "?" (e.g. "super-max?").\nMay be incorrect when multiple Claude Code sessions are running due to current Claude Code limitations.'; }
+    getDescription(): string { return 'Displays the current thinking effort level abbreviated as L, M, H, XH, MAX or A (low, medium, high, xhigh, max, auto), or D when no effort is set.\nClaude Code reports Ultracode as xhigh in status line data; Ultracode is not exposed as a separate effort level.\nUnknown levels are shown with a trailing "?" (e.g. "super-max?").\nMay be incorrect when multiple Claude Code sessions are running due to current Claude Code limitations.'; }
     getDisplayName(): string { return 'Thinking Effort'; }
     getCategory(): string { return 'Core'; }
     getEditorDisplay(item: WidgetItem): WidgetEditorDisplay {
@@ -82,15 +94,15 @@ export class ThinkingEffortWidget implements Widget {
 
     render(item: WidgetItem, context: RenderContext, settings: Settings): string | null {
         if (context.isPreview) {
-            return item.rawValue ? 'high' : 'Eff: high';
+            return item.rawValue ? 'H' : 'Eff: H';
         }
 
         if (isAutoModel(context)) {
-            return item.rawValue ? '-' : 'Thinking: -';
+            return item.rawValue ? '-' : 'Eff: -';
         }
 
         const effort = formatEffort(resolveThinkingEffort(context));
-        return item.rawValue ? effort : `Thinking: ${effort}`;
+        return item.rawValue ? effort : `Eff: ${effort}`;
     }
 
     getDynamicColors(
