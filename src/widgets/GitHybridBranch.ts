@@ -19,9 +19,16 @@ import {
 
 const HYBRID_SYMBOL = '𖠰⎇';
 
+// Drop everything up to and including the last slash (e.g. "feature/demo" -> "demo").
+function lastSegment(name: string | null): string | null {
+    if (!name)
+        return name;
+    return name.slice(name.lastIndexOf('/') + 1) || name;
+}
+
 export class GitHybridBranchWidget implements Widget {
     getDefaultColor(): string { return 'magenta'; }
-    getDescription(): string { return 'Shows git worktree and branch names without repeated matching values'; }
+    getDescription(): string { return 'Shows git worktree and branch names (last path segment only) without repeated matching values'; }
     getDisplayName(): string { return 'Git Hybrid Branch'; }
     getCategory(): string { return 'Git'; }
     getEditorDisplay(_item: WidgetItem): WidgetEditorDisplay {
@@ -52,8 +59,11 @@ export class GitHybridBranchWidget implements Widget {
         return hideNoGit ? null : `${HYBRID_SYMBOL} no git`;
     }
 
-    private formatValue(worktree: string | null, branch: string | null, rawValue: boolean): string | null {
-        if (worktree && branch && (worktree === branch || branch.endsWith(`/${worktree}`))) {
+    private formatValue(fullWorktree: string | null, fullBranch: string | null, rawValue: boolean): string | null {
+        const worktree = lastSegment(fullWorktree);
+        const branch = lastSegment(fullBranch);
+
+        if (worktree && branch && worktree === branch) {
             return rawValue ? branch : `${HYBRID_SYMBOL} ${branch}`;
         }
 
