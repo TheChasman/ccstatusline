@@ -99,8 +99,8 @@ describe('GitDeletionsWidget', () => {
         });
 
         expect(render({ cwd: '/tmp/worktree', gitCommandRunner })).toBe('-5');
-        expectGitExecOptions(gitCommandRunner.calls[0]?.[1], '/tmp/worktree');
-        expectGitExecOptions(gitCommandRunner.calls[1]?.[1], '/tmp/worktree');
+        expectGitExecOptions(gitCommandRunner.calls[0]?.[1], '/tmp/worktree', null);
+        expectGitExecOptions(gitCommandRunner.calls[1]?.[1], '/tmp/worktree', null);
     });
 
     it('should render combined staged and unstaged deletions on the default branch', () => {
