@@ -121,6 +121,13 @@ describe('ContextBarWidget', () => {
         expect(result).toMatch(/\x1b\[0m 50k\/100k \(50%\)$/);
     });
 
+    it('emits no ANSI codes when colours are disabled', () => {
+        const result = widget.render(item, contextFor(50000), { ...DEFAULT_SETTINGS, colorLevel: 0 }) ?? '';
+
+        expect(result).toBe(`Ctxt: ┃${'⣿'.repeat(12)}⡇${'⣀'.repeat(12)}┃ 50k/100k (50%)`);
+        expect(result).not.toContain('\x1b[');
+    });
+
     it('omits the rail when requested while keeping the numeric readout', () => {
         const result = widget.render(item, { ...contextFor(50000), contextBarWidth: 0 }, DEFAULT_SETTINGS);
         expect(getVisibleText(result ?? '')).toBe('Ctxt: 50k/100k (50%)');

@@ -70,6 +70,9 @@ function renderBrailleRail(
 
     const ascii = useAsciiRail();
     const rawBar = makeBrailleContextBar(used, total, width, ascii);
+    if (settings.colorLevel === 0)
+        return rawBar;
+
     const cells = rawBar.slice(1, -1);
     const track = ascii ? '-' : '⣀';
     const firstTrack = cells.indexOf(track);

@@ -1081,6 +1081,10 @@ export function renderStatusLine(
             if (getVisibleWidth(fullLine) > maxWidth) {
                 const widths: Record<string, number> = {};
                 const fittedContext = { ...context, contextBarWidths: widths };
+                const alignPowerline = isPowerlineMode && Boolean(powerlineSettings?.autoAlign);
+                const originalLocalWidths = alignPowerline
+                    ? calculateMaxWidthsFromPreRendered([preRenderedWidgets], settings)
+                    : [];
                 const buildCandidate = (): { content: string; preRendered: PreRenderedWidget[]; maxWidths: number[] } => {
                     const fittedWidgets = preRenderedWidgets.map((preRendered, index) => {
                         const widget = widgets[index];
@@ -1091,10 +1095,18 @@ export function renderStatusLine(
                         const content = getWidget(widget.type)?.render(effectiveWidget, fittedContext, settings) ?? '';
                         return { ...preRendered, content, plainLength: getVisibleWidth(content) };
                     });
-                    // A fitted Powerline line cannot retain cross-line padding
-                    // calculated from the original, wider rail.
-                    const maxWidths = isPowerlineMode && powerlineSettings?.autoAlign
+                    // Reduce shared column maxima only by the width removed
+                    // from this line's bar groups. Other columns retain their
+                    // cross-line alignment.
+                    const fittedLocalWidths = alignPowerline
                         ? calculateMaxWidthsFromPreRendered([fittedWidgets], settings)
+                        : [];
+                    const maxWidths = alignPowerline
+                        ? preCalculatedMaxWidths.map((sharedWidth, index) => {
+                            const originalLocal = originalLocalWidths[index] ?? 0;
+                            const fittedLocal = fittedLocalWidths[index] ?? originalLocal;
+                            return Math.max(fittedLocal, sharedWidth - Math.max(0, originalLocal - fittedLocal));
+                        })
                         : preCalculatedMaxWidths;
                     const content = renderStatusLine(
                         widgets,

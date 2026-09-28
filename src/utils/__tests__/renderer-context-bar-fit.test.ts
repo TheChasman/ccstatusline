@@ -151,6 +151,53 @@ describe('assembled Context Bar fitting', () => {
         expect(getVisibleWidth(withAlignment)).toBeLessThanOrEqual(49);
     });
 
+    it('preserves shared Powerline column alignment while fitting rails on two lines', () => {
+        const settings: Settings = {
+            ...DEFAULT_SETTINGS,
+            flexMode: 'full',
+            powerline: { ...DEFAULT_SETTINGS.powerline, enabled: true, autoAlign: true }
+        };
+        const lines: WidgetItem[][] = [
+            [
+                { id: 'a', type: 'custom-text', customText: 'a' },
+                { id: 'bar-a', type: 'context-bar' },
+                { id: 'end-a', type: 'custom-text', customText: ' END' }
+            ],
+            [
+                { id: 'longer', type: 'custom-text', customText: 'LONGER' },
+                { id: 'bar-b', type: 'context-bar' },
+                { id: 'end-b', type: 'custom-text', customText: ' END' }
+            ]
+        ];
+        const context: RenderContext = {
+            terminalWidth: 55,
+            data: {
+                context_window: {
+                    context_window_size: 100000,
+                    current_usage: {
+                        input_tokens: 50000,
+                        output_tokens: 0,
+                        cache_creation_input_tokens: 0,
+                        cache_read_input_tokens: 0
+                    }
+                }
+            }
+        };
+        const preRendered = preRenderAllWidgets(lines, settings, context);
+        const maxWidths = calculateMaxWidthsFromPreRendered(preRendered, settings);
+        const output = lines.map((line, index) => renderStatusLine(line, settings, context, preRendered[index] ?? [], maxWidths));
+        const visible = output.map(getVisibleText);
+
+        expect(visible[0]?.indexOf('')).toBe(visible[1]?.indexOf(''));
+        expect(visible[0]?.indexOf('')).toBe(6);
+        expect(visible[0]?.lastIndexOf('')).toBe(visible[1]?.lastIndexOf(''));
+        for (const [line, plain] of output.map((line, index) => [line, visible[index]] as const)) {
+            expect(plain).toContain(' END');
+            expect(plain).not.toContain('...');
+            expect(getVisibleWidth(line)).toBeLessThanOrEqual(49);
+        }
+    });
+
     it('shrinks two configured bars independently without widening the short one', () => {
         const bars: WidgetItem[] = [
             { id: 'wide', type: 'context-bar', metadata: { brailleWidth: '40' } },
