@@ -56,7 +56,7 @@ describe('GitHybridBranchWidget', () => {
         mockGitRunner.mockReturnValueOnce('feature/demo');
         mockGitRunner.mockReturnValueOnce('/repo/.git/worktrees/feature/demo');
 
-        expect(render()).toBe('𖠰⎇ feature/demo');
+        expect(render()).toBe('𖠰⎇ demo');
     });
 
     it('should collapse matching branch and worktree values with raw value', () => {
@@ -64,7 +64,7 @@ describe('GitHybridBranchWidget', () => {
         mockGitRunner.mockReturnValueOnce('feature/demo');
         mockGitRunner.mockReturnValueOnce('/repo/.git/worktrees/feature/demo');
 
-        expect(render({ rawValue: true })).toBe('feature/demo');
+        expect(render({ rawValue: true })).toBe('demo');
     });
 
     it('should collapse a worktree that matches the branch after its prefix', () => {
@@ -72,7 +72,7 @@ describe('GitHybridBranchWidget', () => {
         mockGitRunner.mockReturnValueOnce('feature/demo');
         mockGitRunner.mockReturnValueOnce('/repo/.git/worktrees/demo');
 
-        expect(render()).toBe('𖠰⎇ feature/demo');
+        expect(render()).toBe('𖠰⎇ demo');
     });
 
     it('should render different branch and worktree values in parens', () => {
@@ -80,7 +80,7 @@ describe('GitHybridBranchWidget', () => {
         mockGitRunner.mockReturnValueOnce('feature/demo');
         mockGitRunner.mockReturnValueOnce('/repo/.git/worktrees/demo-worktree');
 
-        expect(render()).toBe('𖠰demo-worktree (⎇feature/demo)');
+        expect(render()).toBe('𖠰demo-worktree (⎇demo)');
     });
 
     it('should render different branch and worktree values in parens with raw value', () => {
@@ -88,7 +88,7 @@ describe('GitHybridBranchWidget', () => {
         mockGitRunner.mockReturnValueOnce('feature/demo');
         mockGitRunner.mockReturnValueOnce('/repo/.git/worktrees/demo-worktree');
 
-        expect(render({ rawValue: true })).toBe('demo-worktree (feature/demo)');
+        expect(render({ rawValue: true })).toBe('demo-worktree (demo)');
     });
 
     it('should render the branch once when worktree lookup is empty', () => {
@@ -96,7 +96,7 @@ describe('GitHybridBranchWidget', () => {
         mockGitRunner.mockReturnValueOnce('feature/demo');
         mockGitRunner.mockReturnValueOnce('');
 
-        expect(render()).toBe('𖠰⎇ feature/demo');
+        expect(render()).toBe('𖠰⎇ demo');
     });
 
     it('should render the worktree once when branch lookup is empty', () => {
@@ -105,6 +105,22 @@ describe('GitHybridBranchWidget', () => {
         mockGitRunner.mockReturnValueOnce('/repo/.git/worktrees/demo-worktree');
 
         expect(render()).toBe('𖠰⎇ demo-worktree');
+    });
+
+    it('should keep only the text after the last slash of a nested branch', () => {
+        mockGitRunner.mockReturnValueOnce('true\n');
+        mockGitRunner.mockReturnValueOnce('user/feature/demo');
+        mockGitRunner.mockReturnValueOnce('');
+
+        expect(render()).toBe('𖠰⎇ demo');
+    });
+
+    it('should leave a branch without a slash untouched', () => {
+        mockGitRunner.mockReturnValueOnce('true\n');
+        mockGitRunner.mockReturnValueOnce('main');
+        mockGitRunner.mockReturnValueOnce('');
+
+        expect(render()).toBe('𖠰⎇ main');
     });
 
     it('should render no git when probe returns false', () => {
