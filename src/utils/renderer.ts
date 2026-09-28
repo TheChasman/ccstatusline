@@ -25,6 +25,7 @@ import {
     stripSgrCodes,
     truncateStyledText
 } from './ansi';
+import { resolveBrailleBarWidth } from './braille-context-bar';
 import {
     applyColors,
     applyParensDim,
@@ -134,7 +135,8 @@ function renderPowerlineStatusLine(
     globalSeparatorOffset = 0,  // Starting separator index for this line
     globalThemeColorOffset = 0,  // Starting theme color index for this line
     preRenderedWidgets: PreRenderedWidget[],  // Pre-rendered widgets for this line
-    preCalculatedMaxWidths: number[]  // Pre-calculated max widths for alignment
+    preCalculatedMaxWidths: number[],  // Pre-calculated max widths for alignment
+    skipTruncation = false
 ): string {
     const powerlineConfig = settings.powerline as Record<string, unknown> | undefined;
     const config = powerlineConfig ?? {};
@@ -532,6 +534,12 @@ function renderPowerlineStatusLine(
         const styledContent = widget.widget.dim === 'parens'
             ? applyParensDim(widget.content, shouldBold)
             : widget.content;
+        const scopedContent = isPreserveColors && widget.widget.type === 'context-bar' && widget.bgColor
+            ? styledContent.replace(
+                '\x1b[0m',
+                `\x1b[0m${getColorAnsiCode(widget.bgColor, colorLevel, true)}`
+            )
+            : styledContent;
 
         if (widget.fgColor && !isPreserveColors && !textGradientStops) {
             widgetContent += getColorAnsiCode(widget.fgColor, colorLevel, false);
@@ -542,7 +550,7 @@ function renderPowerlineStatusLine(
         }
         if (textGradientStops) {
             const gradientResult = applyLineGradientSegment(
-                styledContent,
+                scopedContent,
                 textGradientStops,
                 colorLevel,
                 powerlineGradientColumn,
@@ -551,7 +559,7 @@ function renderPowerlineStatusLine(
             widgetContent += gradientResult.text;
             powerlineGradientColumn = gradientResult.nextColumn;
         } else {
-            widgetContent += styledContent;
+            widgetContent += scopedContent;
         }
         // Reset colors after content
         // For custom commands with preserveColors, also reset text attributes like dim
@@ -743,7 +751,7 @@ function renderPowerlineStatusLine(
     result += chalk.reset('');
 
     // Handle truncation if terminal width is known
-    if (terminalWidth && terminalWidth > 0) {
+    if (!skipTruncation && terminalWidth && terminalWidth > 0) {
         const plainLength = getVisibleWidth(result);
         if (plainLength > terminalWidth) {
             result = truncateStyledText(result, terminalWidth, { ellipsis: true });
@@ -1032,7 +1040,8 @@ export function renderStatusLine(
     settings: Settings,
     context: RenderContext,
     preRenderedWidgets: PreRenderedWidget[],
-    preCalculatedMaxWidths: number[]
+    preCalculatedMaxWidths: number[],
+    skipTruncation = false
 ): string {
     // Force 24-bit color for non-preview statusline rendering
     // Chalk level is now set globally in ccstatusline.ts and tui.tsx
@@ -1045,6 +1054,57 @@ export function renderStatusLine(
     const powerlineSettings = settings.powerline as Record<string, unknown> | undefined;
     const isPowerlineMode = Boolean(powerlineSettings?.enabled);
 
+    // Fit the rail against the assembled line, including neighbouring widgets,
+    // padding, separators, and Powerline caps. The internal width flag avoids
+    // measuring a fitted candidate recursively.
+    if (context.contextBarWidth === undefined && !skipTruncation) {
+        const bar = widgets.find(widget => widget.type === 'context-bar'
+            && widget.metadata?.display !== 'slider'
+            && widget.metadata?.display !== 'slider-only');
+        const detectedWidth = context.terminalWidth ?? getTerminalWidth();
+        const effectiveWidth = resolveEffectiveTerminalWidth(detectedWidth, settings, context);
+        const maxWidth = isPowerlineMode ? effectiveWidth : effectiveWidth ?? detectedWidth;
+
+        if (bar && maxWidth && maxWidth > 0) {
+            const nominalWidth = resolveBrailleBarWidth(bar.metadata);
+            const fullLine = renderStatusLine(
+                widgets,
+                settings,
+                { ...context, contextBarWidth: nominalWidth },
+                preRenderedWidgets,
+                preCalculatedMaxWidths,
+                true
+            );
+            const overflow = getVisibleWidth(fullLine) - maxWidth;
+
+            if (overflow > 0) {
+                const remainingWidth = nominalWidth - overflow;
+                const fittedWidth = remainingWidth >= 10 ? remainingWidth : 0;
+                const fittedContext = { ...context, contextBarWidth: fittedWidth };
+                const fittedWidgets = preRenderedWidgets.map((preRendered, index) => {
+                    const widget = widgets[index];
+                    if (widget?.type !== 'context-bar'
+                        || widget.metadata?.display === 'slider'
+                        || widget.metadata?.display === 'slider-only'
+                        || !preRendered.content)
+                        return preRendered;
+
+                    const effectiveWidget = context.minimalist ? { ...widget, rawValue: true } : widget;
+                    const content = getWidget(widget.type)?.render(effectiveWidget, fittedContext, settings) ?? '';
+                    return { ...preRendered, content, plainLength: getVisibleWidth(content) };
+                });
+
+                return renderStatusLine(
+                    widgets,
+                    settings,
+                    fittedContext,
+                    fittedWidgets,
+                    preCalculatedMaxWidths
+                );
+            }
+        }
+    }
+
     // If powerline mode is enabled, use powerline renderer
     if (isPowerlineMode)
         return renderPowerlineStatusLine(
@@ -1055,7 +1115,8 @@ export function renderStatusLine(
             context.globalSeparatorIndex ?? 0,
             context.globalPowerlineThemeIndex ?? 0,
             preRenderedWidgets,
-            preCalculatedMaxWidths
+            preCalculatedMaxWidths,
+            skipTruncation
         );
 
     // Helper to apply colors with optional background, bold, and dim
@@ -1435,7 +1496,7 @@ export function renderStatusLine(
     // Truncate if the line exceeds the terminal width
     // Use terminalWidth if available (already accounts for flex mode adjustments), otherwise use detectedWidth
     const maxWidth = terminalWidth ?? detectedWidth;
-    if (maxWidth && maxWidth > 0) {
+    if (!skipTruncation && maxWidth && maxWidth > 0) {
         // Remove ANSI escape codes to get actual length
         const plainLength = getVisibleWidth(statusLine);
 

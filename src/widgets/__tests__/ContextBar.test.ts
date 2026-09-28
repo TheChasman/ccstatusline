@@ -3,81 +3,131 @@ import {
     beforeEach,
     describe,
     expect,
-    it,
-    vi
+    it
 } from 'vitest';
 
 import type { RenderContext } from '../../types';
 import { DEFAULT_SETTINGS } from '../../types/Settings';
 import type { WidgetItem } from '../../types/Widget';
-import * as usage from '../../utils/usage';
+import { getVisibleText } from '../../utils/ansi';
 import { ContextBarWidget } from '../ContextBar';
-import { ContextLengthWidget } from '../ContextLength';
-import { ContextWindowWidget } from '../ContextWindow';
+
+const widget = new ContextBarWidget();
+const item: WidgetItem = { id: 'ctx', type: 'context-bar' };
+const previousLocale = { LANG: process.env.LANG, LC_ALL: process.env.LC_ALL, LC_CTYPE: process.env.LC_CTYPE };
+
+function contextFor(used: number, total = 100000): RenderContext {
+    return {
+        data: {
+            context_window: {
+                context_window_size: total,
+                current_usage: {
+                    input_tokens: used,
+                    output_tokens: 10000,
+                    cache_creation_input_tokens: 0,
+                    cache_read_input_tokens: 0
+                }
+            }
+        }
+    };
+}
 
 describe('ContextBarWidget', () => {
     beforeEach(() => {
-        vi.restoreAllMocks();
-        vi.spyOn(usage, 'makeUsageProgressBar').mockImplementation((percent: number, width = 15) => `[bar:${percent.toFixed(1)}:${width}]`);
+        process.env.LANG = 'en_GB.UTF-8';
+        process.env.LC_ALL = 'en_GB.UTF-8';
+        process.env.LC_CTYPE = 'en_GB.UTF-8';
     });
 
     afterEach(() => {
-        vi.restoreAllMocks();
+        if (previousLocale.LANG === undefined)
+            delete process.env.LANG;
+        else
+            process.env.LANG = previousLocale.LANG;
+        if (previousLocale.LC_ALL === undefined)
+            delete process.env.LC_ALL;
+        else
+            process.env.LC_ALL = previousLocale.LC_ALL;
+        if (previousLocale.LC_CTYPE === undefined)
+            delete process.env.LC_CTYPE;
+        else
+            process.env.LC_CTYPE = previousLocale.LC_CTYPE;
     });
 
-    it('renders from context_window data when available', () => {
-        const context: RenderContext = {
-            data: {
-                context_window: {
-                    context_window_size: 200000,
-                    current_usage: {
-                        input_tokens: 20000,
-                        output_tokens: 10000,
-                        cache_creation_input_tokens: 5000,
-                        cache_read_input_tokens: 5000
-                    }
-                }
+    it('renders 25 Braille cells from raw counts with the existing numeric text', () => {
+        const result = widget.render(item, contextFor(15000, 100000), DEFAULT_SETTINGS) ?? '';
+
+        expect(getVisibleText(result)).toBe(`Ctxt: ┃${'⣿'.repeat(3)}⣧${'⣀'.repeat(21)}┃ 15k/100k (15%)`);
+        expect(result).toMatch(/\x1b\[0m 15k\/100k \(15%\)$/);
+    });
+
+    it.each([
+        [49, '\x1b[38;5;34m'],
+        [50, '\x1b[38;5;214m'],
+        [75, '\x1b[38;5;196m']
+    ])('uses threshold fill colour at %i percent without colouring the label or readout', (percent, colour) => {
+        const result = widget.render(item, contextFor(percent * 1000), DEFAULT_SETTINGS) ?? '';
+
+        expect(result.startsWith('Ctxt: \x1b[38;5;244m')).toBe(true);
+        expect(result).toContain(`${colour}⣿`);
+        expect(result).toMatch(/\x1b\[0m \d+k\/100k \(\d+%\)$/);
+        expect(widget.getDynamicColors(item, contextFor(percent * 1000), DEFAULT_SETTINGS)).toBeNull();
+    });
+
+    it('uses configured width, thresholds, and fill colour', () => {
+        const configured = {
+            ...item,
+            metadata: {
+                brailleWidth: '12',
+                brailleWarningAt: '30',
+                brailleCriticalAt: '40',
+                brailleMediumColor: 'ansi256:23'
             }
         };
-        const widget = new ContextBarWidget();
+        const result = widget.render(configured, contextFor(35000), DEFAULT_SETTINGS) ?? '';
 
-        expect(widget.render({ id: 'ctx', type: 'context-bar' }, context, DEFAULT_SETTINGS)).toBe('Ctxt: [bar:15.0:16] 30k/200k (15%)');
+        expect(getVisibleText(result)).toBe(`Ctxt: ┃${'⣿'.repeat(4)}⡀${'⣀'.repeat(7)}┃ 35k/100k (35%)`);
+        expect(result).toContain('\x1b[38;5;23m⣿');
     });
 
-    it('falls back to token metrics and model context size', () => {
-        const context: RenderContext = {
-            data: { model: { id: 'claude-3-5-sonnet-20241022' } },
-            tokenMetrics: {
-                inputTokens: 0,
-                outputTokens: 0,
-                cachedTokens: 0,
-                totalTokens: 0,
-                contextLength: 50000
+    it('uses defaults when metadata is invalid', () => {
+        const result = widget.render({
+            ...item,
+            metadata: {
+                brailleWidth: 'bad',
+                brailleWarningAt: '200',
+                brailleCriticalAt: '-1',
+                brailleMediumColor: 'no-such-colour'
             }
-        };
-        const widget = new ContextBarWidget();
+        }, contextFor(50000), DEFAULT_SETTINGS) ?? '';
 
-        expect(widget.render({ id: 'ctx', type: 'context-bar' }, context, DEFAULT_SETTINGS)).toBe('Ctxt: [bar:25.0:16] 50k/200k (25%)');
+        expect(getVisibleText(result)).toContain(`┃${'⣿'.repeat(12)}⡇${'⣀'.repeat(12)}┃`);
+        expect(result).toContain('\x1b[38;5;214m⣿');
     });
 
-    it('uses 1M context label model IDs in fallback mode', () => {
-        const context: RenderContext = {
-            data: { model: { id: 'Opus 4.6 (1M context)' } },
-            tokenMetrics: {
-                inputTokens: 0,
-                outputTokens: 0,
-                cachedTokens: 0,
-                totalTokens: 0,
-                contextLength: 50000
-            }
-        };
-        const widget = new ContextBarWidget();
+    it('shows an empty rail and no numeric text when counts are missing', () => {
+        const result = widget.render(item, { data: { context_window: { context_window_size: 100000 } } }, DEFAULT_SETTINGS) ?? '';
 
-        expect(widget.render({ id: 'ctx', type: 'context-bar' }, context, DEFAULT_SETTINGS)).toBe('Ctxt: [bar:5.0:16] 50k/1.0M (5%)');
+        expect(getVisibleText(result)).toBe(`Ctxt: ┃${'⣀'.repeat(25)}┃`);
     });
 
-    it('uses 1M in parentheses model IDs in fallback mode', () => {
-        const context: RenderContext = {
+    it('uses ASCII fallback under LANG=C', () => {
+        process.env.LANG = 'C';
+        process.env.LC_ALL = 'C';
+        process.env.LC_CTYPE = 'C';
+        const result = widget.render(item, contextFor(50000), DEFAULT_SETTINGS) ?? '';
+
+        expect(getVisibleText(result)).toBe(`Ctxt: |${'#'.repeat(13)}${'-'.repeat(12)}| 50k/100k (50%)`);
+        expect(result).toMatch(/\x1b\[0m 50k\/100k \(50%\)$/);
+    });
+
+    it('omits the rail when requested while keeping the numeric readout', () => {
+        const result = widget.render(item, { ...contextFor(50000), contextBarWidth: 0 }, DEFAULT_SETTINGS);
+        expect(getVisibleText(result ?? '')).toBe('Ctxt: 50k/100k (50%)');
+    });
+
+    it('keeps model and transcript fallback and raw mode', () => {
+        const fallback: RenderContext = {
             data: { model: { id: 'Opus 4.6 (1M)' } },
             tokenMetrics: {
                 inputTokens: 0,
@@ -87,161 +137,34 @@ describe('ContextBarWidget', () => {
                 contextLength: 50000
             }
         };
-        const widget = new ContextBarWidget();
 
-        expect(widget.render({ id: 'ctx', type: 'context-bar' }, context, DEFAULT_SETTINGS)).toBe('Ctxt: [bar:5.0:16] 50k/1.0M (5%)');
+        expect(getVisibleText(widget.render(item, fallback, DEFAULT_SETTINGS) ?? ''))
+            .toMatch(/^Ctxt: ┃.{25}┃ 50k\/1\.0M \(5%\)$/u);
+        expect(getVisibleText(widget.render({ ...item, rawValue: true }, contextFor(5000), DEFAULT_SETTINGS) ?? ''))
+            .toMatch(/^┃.{25}┃ 5k\/100k \(5%\)$/u);
     });
 
-    it('clamps usage percentage to 100 when context length exceeds total', () => {
-        const context: RenderContext = {
-            data: {
-                context_window: {
-                    context_window_size: 200000,
-                    current_usage: {
-                        input_tokens: 250000,
-                        output_tokens: 50000,
-                        cache_creation_input_tokens: 0,
-                        cache_read_input_tokens: 0
-                    }
-                }
-            }
-        };
-        const widget = new ContextBarWidget();
+    it('keeps long progress and slider modes', () => {
+        const long = { ...item, metadata: { display: 'progress' } };
+        const slider = { ...item, metadata: { display: 'slider' } };
+        const sliderOnly = { ...item, metadata: { display: 'slider-only' } };
 
-        expect(widget.render({ id: 'ctx', type: 'context-bar' }, context, DEFAULT_SETTINGS)).toBe('Ctxt: [bar:100.0:16] 250k/200k (100%)');
+        expect(getVisibleText(widget.render(long, contextFor(50000), DEFAULT_SETTINGS) ?? ''))
+            .toMatch(/^Ctxt: ┃.{25}┃ 50k\/100k \(50%\)$/u);
+        expect(widget.render(slider, contextFor(50000), DEFAULT_SETTINGS)).toBe('Context: ▓▓▓▓▓░░░░░ 50k/100k (50%)');
+        expect(widget.render(sliderOnly, contextFor(50000), DEFAULT_SETTINGS)).toBe('Context: ▓▓▓▓▓░░░░░');
+        expect(widget.getDynamicColors(slider, contextFor(70000), DEFAULT_SETTINGS)?.backgroundColor).toContain('196');
     });
 
-    it('supports raw mode without context label', () => {
-        const context: RenderContext = {
-            data: {
-                context_window: {
-                    context_window_size: 200000,
-                    current_usage: {
-                        input_tokens: 5000,
-                        output_tokens: 5000,
-                        cache_creation_input_tokens: 0,
-                        cache_read_input_tokens: 0
-                    }
-                }
-            }
-        };
-        const widget = new ContextBarWidget();
+    it('cycles display modes and formats the preview', () => {
+        const first = widget.handleEditorAction('toggle-progress', item);
+        const second = widget.handleEditorAction('toggle-progress', first ?? item);
+        const third = widget.handleEditorAction('toggle-progress', second ?? item);
+        const fourth = widget.handleEditorAction('toggle-progress', third ?? item);
 
-        expect(widget.render({ id: 'ctx', type: 'context-bar', rawValue: true }, context, DEFAULT_SETTINGS)).toBe('[bar:2.5:16] 5k/200k (3%)');
-    });
-
-    it('renders long progress bar mode when configured', () => {
-        const context: RenderContext = {
-            data: {
-                context_window: {
-                    context_window_size: 200000,
-                    current_usage: {
-                        input_tokens: 20000,
-                        output_tokens: 10000,
-                        cache_creation_input_tokens: 5000,
-                        cache_read_input_tokens: 5000
-                    }
-                }
-            }
-        };
-        const widget = new ContextBarWidget();
-
-        expect(widget.render({
-            id: 'ctx',
-            type: 'context-bar',
-            metadata: { display: 'progress' }
-        }, context, DEFAULT_SETTINGS)).toBe('Ctxt: [bar:15.0:32] 30k/200k (15%)');
-    });
-
-    it('cycles display modes in the expected order', () => {
-        const widget = new ContextBarWidget();
-        const base: WidgetItem = { id: 'ctx', type: 'context-bar' };
-
-        const first = widget.handleEditorAction('toggle-progress', base);
-        const second = widget.handleEditorAction('toggle-progress', first ?? base);
-        const third = widget.handleEditorAction('toggle-progress', second ?? base);
-        const fourth = widget.handleEditorAction('toggle-progress', third ?? base);
-
-        expect(first?.metadata?.display).toBe('progress');
-        expect(second?.metadata?.display).toBe('slider');
-        expect(third?.metadata?.display).toBe('slider-only');
-        expect(fourth?.metadata?.display).toBe('progress-short');
-    });
-
-    describe('getDynamicColors', () => {
-        function makeContext(used: number, total: number): RenderContext {
-            return {
-                data: {
-                    context_window: {
-                        context_window_size: total,
-                        current_usage: {
-                            input_tokens: used,
-                            output_tokens: 0,
-                            cache_creation_input_tokens: 0,
-                            cache_read_input_tokens: 0
-                        }
-                    }
-                }
-            };
-        }
-
-        it('returns null below 50%', () => {
-            const widget = new ContextBarWidget();
-            expect(widget.getDynamicColors({ id: 'ctx', type: 'context-bar' }, makeContext(49000, 100000), DEFAULT_SETTINGS)).toBeNull();
-        });
-
-        it('returns orange at 50%', () => {
-            const widget = new ContextBarWidget();
-            const result = widget.getDynamicColors({ id: 'ctx', type: 'context-bar' }, makeContext(50000, 100000), DEFAULT_SETTINGS);
-            expect(result).not.toBeNull();
-            expect(result?.color).toContain('214');
-            expect(result?.backgroundColor).toBeUndefined();
-        });
-
-        it('returns red fg only between 60–69%', () => {
-            const widget = new ContextBarWidget();
-            const result = widget.getDynamicColors({ id: 'ctx', type: 'context-bar' }, makeContext(65000, 100000), DEFAULT_SETTINGS);
-            expect(result).not.toBeNull();
-            expect(result?.color).toContain('196');
-            expect(result?.backgroundColor).toBeUndefined();
-        });
-
-        it('returns red bg with white text at 70%+', () => {
-            const widget = new ContextBarWidget();
-            const result = widget.getDynamicColors({ id: 'ctx', type: 'context-bar' }, makeContext(70000, 100000), DEFAULT_SETTINGS);
-            expect(result).not.toBeNull();
-            expect(result?.backgroundColor).toContain('196');
-            expect(result?.color).toBe('white');
-        });
-
-        it('returns null in preview mode', () => {
-            const widget = new ContextBarWidget();
-            const result = widget.getDynamicColors(
-                { id: 'ctx', type: 'context-bar' },
-                { ...makeContext(80000, 100000), isPreview: true },
-                DEFAULT_SETTINGS
-            );
-            expect(result).toBeNull();
-        });
-    });
-
-    it('formats context preview samples with the selected styles', () => {
-        const context: RenderContext = { isPreview: true };
-
-        expect(new ContextLengthWidget().render({
-            id: 'length',
-            type: 'context-length',
-            numberFormat: { style: 'whole' }
-        }, context, DEFAULT_SETTINGS)).toBe('Ctx: 19k');
-        expect(new ContextWindowWidget().render({
-            id: 'window',
-            type: 'context-window',
-            numberFormat: { decimals: 2 }
-        }, context, DEFAULT_SETTINGS)).toBe('Win: 200.00k');
-        expect(new ContextBarWidget().render({
-            id: 'bar',
-            type: 'context-bar',
-            numberFormat: { decimals: 2 }
-        }, context, DEFAULT_SETTINGS)).toBe('Ctxt: [bar:25.0:16] 50.00k/200.00k (25.00%)');
+        expect([first, second, third, fourth].map(next => next?.metadata?.display))
+            .toEqual(['progress', 'slider', 'slider-only', 'progress-short']);
+        expect(getVisibleText(widget.render({ ...item, numberFormat: { decimals: 2 } }, { isPreview: true }, DEFAULT_SETTINGS) ?? ''))
+            .toMatch(/^Ctxt: ┃.{25}┃ 50\.00k\/200\.00k \(25\.00%\)$/u);
     });
 });

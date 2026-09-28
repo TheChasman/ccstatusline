@@ -66,6 +66,7 @@ export interface RenderContext {
     skillsMetrics?: SkillsMetrics | null;
     compactionData?: CompactionData | null;
     terminalWidth?: number | null;
+    contextBarWidth?: number;  // Internal line-fitting override; 0 omits the rail
     isPreview?: boolean;
     minimalist?: boolean;
     gitCacheTtlSeconds?: number;
