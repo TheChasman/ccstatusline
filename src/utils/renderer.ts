@@ -1085,28 +1085,44 @@ export function renderStatusLine(
                 const originalLocalWidths = alignPowerline
                     ? calculateMaxWidthsFromPreRendered([preRenderedWidgets], settings)
                     : [];
-                const buildCandidate = (): { content: string; preRendered: PreRenderedWidget[]; maxWidths: number[] } => {
-                    const fittedWidgets = preRenderedWidgets.map((preRendered, index) => {
+                const renderWidgetsWithWidths = (overrides: Record<string, number>): PreRenderedWidget[] => {
+                    const overrideContext = { ...context, contextBarWidths: overrides };
+                    return preRenderedWidgets.map((preRendered, index) => {
                         const widget = widgets[index];
-                        if (widget?.type !== 'context-bar' || widths[widget.id] === undefined || !preRendered.content)
+                        if (widget?.type !== 'context-bar' || overrides[widget.id] === undefined || !preRendered.content)
                             return preRendered;
 
                         const effectiveWidget = context.minimalist ? { ...widget, rawValue: true } : widget;
-                        const content = getWidget(widget.type)?.render(effectiveWidget, fittedContext, settings) ?? '';
+                        const content = getWidget(widget.type)?.render(effectiveWidget, overrideContext, settings) ?? '';
                         return { ...preRendered, content, plainLength: getVisibleWidth(content) };
                     });
-                    // Reduce shared column maxima only by the width removed
-                    // from this line's bar groups. Other columns retain their
-                    // cross-line alignment.
+                };
+                const targetMaxWidths = [...preCalculatedMaxWidths];
+                if (alignPowerline) {
+                    const noRailOverrides = Object.fromEntries(bars.map(bar => [bar.widget.id, 0]));
+                    const noRailWidths = calculateMaxWidthsFromPreRendered(
+                        [renderWidgetsWithWidths(noRailOverrides)],
+                        settings
+                    );
+                    let remainingOverflow = getVisibleWidth(fullLine) - maxWidth;
+                    for (let index = 0; index < targetMaxWidths.length && remainingOverflow > 0; index++) {
+                        const localWidth = originalLocalWidths[index] ?? 0;
+                        const noRailWidth = noRailWidths[index] ?? localWidth;
+                        if (localWidth <= noRailWidth)
+                            continue;
+                        const sharedWidth = targetMaxWidths[index] ?? 0;
+                        const reduction = Math.min(remainingOverflow, Math.max(0, sharedWidth - noRailWidth));
+                        targetMaxWidths[index] = sharedWidth - reduction;
+                        remainingOverflow -= reduction;
+                    }
+                }
+                const buildCandidate = (): { content: string; preRendered: PreRenderedWidget[]; maxWidths: number[] } => {
+                    const fittedWidgets = renderWidgetsWithWidths(widths);
                     const fittedLocalWidths = alignPowerline
                         ? calculateMaxWidthsFromPreRendered([fittedWidgets], settings)
                         : [];
                     const maxWidths = alignPowerline
-                        ? preCalculatedMaxWidths.map((sharedWidth, index) => {
-                            const originalLocal = originalLocalWidths[index] ?? 0;
-                            const fittedLocal = fittedLocalWidths[index] ?? originalLocal;
-                            return Math.max(fittedLocal, sharedWidth - Math.max(0, originalLocal - fittedLocal));
-                        })
+                        ? targetMaxWidths.map((target, index) => Math.max(target, fittedLocalWidths[index] ?? 0))
                         : preCalculatedMaxWidths;
                     const content = renderStatusLine(
                         widgets,
