@@ -1,3 +1,4 @@
+import { getColorLevelString } from '../types/ColorLevel';
 import type { RenderContext } from '../types/RenderContext';
 import type { Settings } from '../types/Settings';
 import type {
@@ -7,7 +8,13 @@ import type {
     WidgetEditorDisplay,
     WidgetItem
 } from '../types/Widget';
+import {
+    makeBrailleContextBar,
+    resolveBrailleBarWidth
+} from '../utils/braille-context-bar';
+import { getColorAnsiCode } from '../utils/colors';
 import { getContextWindowMetrics } from '../utils/context-window';
+import { formatTokens } from '../utils/format-tokens';
 import {
     getContextConfig,
     getModelContextIdentifier
@@ -16,9 +23,7 @@ import {
     formatPercent,
     resolveNumberFormat
 } from '../utils/number-format';
-import { formatTokens } from '../utils/renderer';
 import { getTrafficLightColor } from '../utils/traffic-light';
-import { makeUsageProgressBar } from '../utils/usage';
 
 import { makeSliderBar } from './shared/usage-display';
 
@@ -34,6 +39,58 @@ function getDisplayMode(item: WidgetItem): DisplayMode {
 
 function isBarSliderMode(mode: DisplayMode): boolean {
     return mode === 'slider' || mode === 'slider-only';
+}
+
+function useAsciiRail(): boolean {
+    const locale = [process.env.LC_ALL, process.env.LC_CTYPE, process.env.LANG].find(value => value && value.length > 0);
+    return !locale || !/utf-?8/i.test(locale);
+}
+
+function resolveThresholds(metadata?: Record<string, string>): { warning: number; critical: number } {
+    const parse = (value: string | undefined, fallback: number): number => {
+        if (value === undefined || !/^\s*\d+(?:\.\d+)?\s*$/.test(value))
+            return fallback;
+        const number = Number(value);
+        return Number.isFinite(number) && number >= 0 && number <= 100 ? number : fallback;
+    };
+    const warning = parse(metadata?.brailleWarningAt, 50);
+    const critical = parse(metadata?.brailleCriticalAt, 75);
+    return warning < critical ? { warning, critical } : { warning: 50, critical: 75 };
+}
+
+function renderBrailleRail(
+    used: number,
+    total: number,
+    width: number,
+    item: WidgetItem,
+    settings: Settings
+): string {
+    if (width === 0)
+        return '';
+
+    const ascii = useAsciiRail();
+    const rawBar = makeBrailleContextBar(used, total, width, ascii);
+    if (settings.colorLevel === 0)
+        return rawBar;
+
+    const cells = rawBar.slice(1, -1);
+    const track = ascii ? '-' : '⣀';
+    const firstTrack = cells.indexOf(track);
+    const filledEnd = firstTrack === -1 ? cells.length : firstTrack;
+    const fill = cells.slice(0, filledEnd);
+    const empty = cells.slice(filledEnd);
+    const { warning, critical } = resolveThresholds(item.metadata);
+    const percentage = total > 0 ? (used / total) * 100 : 0;
+    const level = percentage >= critical ? 'high' : percentage >= warning ? 'medium' : 'low';
+    const defaultColor = level === 'high' ? 'red' : level === 'medium' ? 'orange' : 'green';
+    const configuredColor = item.metadata?.[`braille${level[0]?.toUpperCase()}${level.slice(1)}Color`];
+    const colorLevel = getColorLevelString(settings.colorLevel);
+    const defaultCode = getColorAnsiCode(getTrafficLightColor(defaultColor, settings.colorLevel), colorLevel);
+    const fillCode = getColorAnsiCode(configuredColor, colorLevel) || defaultCode;
+    const delimiterCode = getColorAnsiCode('ansi256:244', colorLevel);
+    const trackCode = getColorAnsiCode('ansi256:238', colorLevel);
+
+    return `${delimiterCode}${rawBar[0]}${fill ? `${fillCode}${fill}` : ''}${empty ? `${trackCode}${empty}` : ''}${delimiterCode}${rawBar[rawBar.length - 1]}\x1b[0m`;
 }
 
 export class ContextBarWidget implements Widget {
@@ -97,8 +154,9 @@ export class ContextBarWidget implements Widget {
                 const sliderDisplay = displayMode === 'slider' ? `${slider} ${usedDisplay}/${totalDisplay} (${percentDisplay})` : slider;
                 return item.rawValue ? sliderDisplay : `Context: ${sliderDisplay}`;
             }
-            const barWidth = displayMode === 'progress' ? 32 : 16;
-            const previewDisplay = `${makeUsageProgressBar(25, barWidth)} ${usedDisplay}/${totalDisplay} (${percentDisplay})`;
+            const barWidth = context.contextBarWidths?.[item.id] ?? context.contextBarWidth ?? resolveBrailleBarWidth(item.metadata);
+            const rail = renderBrailleRail(50000, 200000, barWidth, item, settings);
+            const previewDisplay = `${rail ? `${rail} ` : ''}${usedDisplay}/${totalDisplay} (${percentDisplay})`;
             return item.rawValue ? previewDisplay : `Ctxt: ${previewDisplay}`;
         }
 
@@ -117,7 +175,11 @@ export class ContextBarWidget implements Widget {
         }
 
         if (used === null || total === null || total <= 0) {
-            return null;
+            if (isBarSliderMode(displayMode))
+                return null;
+            const barWidth = context.contextBarWidths?.[item.id] ?? context.contextBarWidth ?? resolveBrailleBarWidth(item.metadata);
+            const rail = renderBrailleRail(0, 0, barWidth, item, settings);
+            return item.rawValue ? rail : `Ctxt: ${rail}`;
         }
 
         const percent = (used / total) * 100;
@@ -132,8 +194,9 @@ export class ContextBarWidget implements Widget {
             return item.rawValue ? sliderDisplay : `Context: ${sliderDisplay}`;
         }
 
-        const barWidth = displayMode === 'progress' ? 32 : 16;
-        const display = `${makeUsageProgressBar(clampedPercent, barWidth)} ${usedDisplay}/${totalDisplay} (${percentDisplay})`;
+        const barWidth = context.contextBarWidths?.[item.id] ?? context.contextBarWidth ?? resolveBrailleBarWidth(item.metadata);
+        const rail = renderBrailleRail(used, total, barWidth, item, settings);
+        const display = `${rail ? `${rail} ` : ''}${usedDisplay}/${totalDisplay} (${percentDisplay})`;
 
         return item.rawValue ? display : `Ctxt: ${display}`;
     }
@@ -149,6 +212,9 @@ export class ContextBarWidget implements Widget {
         context: RenderContext,
         settings: Settings
     ): DynamicColors | null {
+        if (!isBarSliderMode(getDisplayMode(item))) {
+            return null;
+        }
         if (context.isPreview) {
             return null;
         }
@@ -189,6 +255,7 @@ export class ContextBarWidget implements Widget {
     }
 
     supportsRawValue(): boolean { return true; }
+    preservesRenderedColors(item: WidgetItem): boolean { return !isBarSliderMode(getDisplayMode(item)); }
     supportsColors(item: WidgetItem): boolean { return true; }
     supportsNumberFormat(): boolean { return true; }
 }

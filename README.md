@@ -30,6 +30,10 @@
 </div>
 <br />
 
+## Project documents
+
+The [design register](docs/DESIGN_REGISTER.md) records decisions and open checks; [development conventions](docs/DEVELOPMENT.md) cover setup and validation. Coding agents can enter through [AGENTS.md](AGENTS.md), [CLAUDE.md](CLAUDE.md), [GEMINI.md](GEMINI.md), or [WARP.md](WARP.md). This README is the human entry point.
+
 ## 📚 Table of Contents
 
 - [Recent Updates](#-recent-updates)

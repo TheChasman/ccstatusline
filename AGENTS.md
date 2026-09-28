@@ -1,6 +1,14 @@
-# CLAUDE.md
+# Agent guidance
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides project guidance to coding agents. `CLAUDE.md` is a symlink here.
+
+## Project document map
+
+- [Design register](docs/DESIGN_REGISTER.md) tracks decisions and open design checks.
+- [Development conventions](docs/DEVELOPMENT.md) covers setup, architecture, and checks.
+- [README](README.md) is the human project entry point.
+- Agent entry points: [AGENTS.md](AGENTS.md), [CLAUDE.md](CLAUDE.md), [GEMINI.md](GEMINI.md), and [WARP.md](WARP.md).
+- Follow the [global agent workflow](/Users/chasnewport/Projects/agent-protocol/protocol/AGENT_WORKFLOW.md) before planning, coding, reviewing, merging, pushing, or cleaning.
 
 ## Project Overview
 

@@ -25,6 +25,7 @@ import {
     stripSgrCodes,
     truncateStyledText
 } from './ansi';
+import { resolveBrailleBarWidth } from './braille-context-bar';
 import {
     applyColors,
     applyParensDim,
@@ -73,6 +74,19 @@ function hasForegroundOverride(settings: Settings): boolean {
 // remains independent of foreground preservation.
 function preservesIntrinsicForeground(item: WidgetItem, settings: Settings): boolean {
     return widgetPreservesColors(item) && !hasForegroundOverride(settings);
+}
+
+// The bar resets its own foreground after the rail. Reapply the surrounding
+// widget styles so its numeric readout stays in the same segment as its label.
+function restoreContextBarStylesAfterRail(
+    content: string,
+    colorLevel: 'ansi16' | 'ansi256' | 'truecolor',
+    backgroundColor?: string,
+    bold?: boolean,
+    dim?: boolean
+): string {
+    const restored = `${bold ? '\x1b[1m' : ''}${dim ? '\x1b[2m' : ''}${getColorAnsiCode(backgroundColor, colorLevel, true)}`;
+    return restored ? content.replace('\x1b[0m', `\x1b[0m${restored}`) : content;
 }
 
 // Split the default padding string into the leading/trailing pieces that
@@ -134,7 +148,8 @@ function renderPowerlineStatusLine(
     globalSeparatorOffset = 0,  // Starting separator index for this line
     globalThemeColorOffset = 0,  // Starting theme color index for this line
     preRenderedWidgets: PreRenderedWidget[],  // Pre-rendered widgets for this line
-    preCalculatedMaxWidths: number[]  // Pre-calculated max widths for alignment
+    preCalculatedMaxWidths: number[],  // Pre-calculated max widths for alignment
+    skipTruncation = false
 ): string {
     const powerlineConfig = settings.powerline as Record<string, unknown> | undefined;
     const config = powerlineConfig ?? {};
@@ -532,6 +547,9 @@ function renderPowerlineStatusLine(
         const styledContent = widget.widget.dim === 'parens'
             ? applyParensDim(widget.content, shouldBold)
             : widget.content;
+        const scopedContent = isPreserveColors && widget.widget.type === 'context-bar'
+            ? restoreContextBarStylesAfterRail(styledContent, colorLevel, widget.bgColor, shouldBold, shouldDim)
+            : styledContent;
 
         if (widget.fgColor && !isPreserveColors && !textGradientStops) {
             widgetContent += getColorAnsiCode(widget.fgColor, colorLevel, false);
@@ -542,7 +560,7 @@ function renderPowerlineStatusLine(
         }
         if (textGradientStops) {
             const gradientResult = applyLineGradientSegment(
-                styledContent,
+                scopedContent,
                 textGradientStops,
                 colorLevel,
                 powerlineGradientColumn,
@@ -551,7 +569,7 @@ function renderPowerlineStatusLine(
             widgetContent += gradientResult.text;
             powerlineGradientColumn = gradientResult.nextColumn;
         } else {
-            widgetContent += styledContent;
+            widgetContent += scopedContent;
         }
         // Reset colors after content
         // For custom commands with preserveColors, also reset text attributes like dim
@@ -743,7 +761,7 @@ function renderPowerlineStatusLine(
     result += chalk.reset('');
 
     // Handle truncation if terminal width is known
-    if (terminalWidth && terminalWidth > 0) {
+    if (!skipTruncation && terminalWidth && terminalWidth > 0) {
         const plainLength = getVisibleWidth(result);
         if (plainLength > terminalWidth) {
             result = truncateStyledText(result, terminalWidth, { ellipsis: true });
@@ -1032,7 +1050,8 @@ export function renderStatusLine(
     settings: Settings,
     context: RenderContext,
     preRenderedWidgets: PreRenderedWidget[],
-    preCalculatedMaxWidths: number[]
+    preCalculatedMaxWidths: number[],
+    skipTruncation = false
 ): string {
     // Force 24-bit color for non-preview statusline rendering
     // Chalk level is now set globally in ccstatusline.ts and tui.tsx
@@ -1045,6 +1064,111 @@ export function renderStatusLine(
     const powerlineSettings = settings.powerline as Record<string, unknown> | undefined;
     const isPowerlineMode = Boolean(powerlineSettings?.enabled);
 
+    // Fit each rail against the assembled line, including neighbouring widgets,
+    // padding, separators, and Powerline caps. Internal width overrides avoid
+    // measuring a fitted candidate recursively.
+    if (context.contextBarWidth === undefined && context.contextBarWidths === undefined && !skipTruncation) {
+        const bars = widgets.flatMap((widget, index) => widget.type === 'context-bar'
+            && widget.metadata?.display !== 'slider'
+            && widget.metadata?.display !== 'slider-only'
+            && preRenderedWidgets[index]?.content
+            ? [{ widget, nominalWidth: resolveBrailleBarWidth(widget.metadata) }]
+            : []);
+        const detectedWidth = context.terminalWidth ?? getTerminalWidth();
+        const effectiveWidth = resolveEffectiveTerminalWidth(detectedWidth, settings, context);
+        const maxWidth = isPowerlineMode ? effectiveWidth : effectiveWidth ?? detectedWidth;
+
+        if (bars.length > 0 && maxWidth && maxWidth > 0) {
+            const fullLine = renderStatusLine(
+                widgets,
+                settings,
+                context,
+                preRenderedWidgets,
+                preCalculatedMaxWidths,
+                true
+            );
+
+            if (getVisibleWidth(fullLine) > maxWidth) {
+                const widths: Record<string, number> = {};
+                const fittedContext = { ...context, contextBarWidths: widths };
+                const alignPowerline = isPowerlineMode && Boolean(powerlineSettings?.autoAlign);
+                const originalLocalWidths = alignPowerline
+                    ? calculateMaxWidthsFromPreRendered([preRenderedWidgets], settings)
+                    : [];
+                const renderWidgetsWithWidths = (overrides: Record<string, number>): PreRenderedWidget[] => {
+                    const overrideContext = { ...context, contextBarWidths: overrides };
+                    return preRenderedWidgets.map((preRendered, index) => {
+                        const widget = widgets[index];
+                        if (widget?.type !== 'context-bar' || overrides[widget.id] === undefined || !preRendered.content)
+                            return preRendered;
+
+                        const effectiveWidget = context.minimalist ? { ...widget, rawValue: true } : widget;
+                        const content = getWidget(widget.type)?.render(effectiveWidget, overrideContext, settings) ?? '';
+                        return { ...preRendered, content, plainLength: getVisibleWidth(content) };
+                    });
+                };
+                const targetMaxWidths = [...preCalculatedMaxWidths];
+                if (alignPowerline) {
+                    const noRailOverrides = Object.fromEntries(bars.map(bar => [bar.widget.id, 0]));
+                    const noRailWidths = calculateMaxWidthsFromPreRendered(
+                        [renderWidgetsWithWidths(noRailOverrides)],
+                        settings
+                    );
+                    let remainingOverflow = getVisibleWidth(fullLine) - maxWidth;
+                    for (let index = 0; index < targetMaxWidths.length && remainingOverflow > 0; index++) {
+                        const localWidth = originalLocalWidths[index] ?? 0;
+                        const noRailWidth = noRailWidths[index] ?? localWidth;
+                        if (localWidth <= noRailWidth)
+                            continue;
+                        const sharedWidth = targetMaxWidths[index] ?? 0;
+                        const reduction = Math.min(remainingOverflow, Math.max(0, sharedWidth - noRailWidth));
+                        targetMaxWidths[index] = sharedWidth - reduction;
+                        remainingOverflow -= reduction;
+                    }
+                }
+                const buildCandidate = (): { content: string; preRendered: PreRenderedWidget[]; maxWidths: number[] } => {
+                    const fittedWidgets = renderWidgetsWithWidths(widths);
+                    const fittedLocalWidths = alignPowerline
+                        ? calculateMaxWidthsFromPreRendered([fittedWidgets], settings)
+                        : [];
+                    const maxWidths = alignPowerline
+                        ? targetMaxWidths.map((target, index) => Math.max(target, fittedLocalWidths[index] ?? 0))
+                        : preCalculatedMaxWidths;
+                    const content = renderStatusLine(
+                        widgets,
+                        settings,
+                        fittedContext,
+                        fittedWidgets,
+                        maxWidths,
+                        true
+                    );
+                    return { content, preRendered: fittedWidgets, maxWidths };
+                };
+
+                let candidate = buildCandidate();
+                for (const bar of bars) {
+                    const overflow = getVisibleWidth(candidate.content) - maxWidth;
+                    if (overflow <= 0)
+                        break;
+                    const currentWidth = widths[bar.widget.id] ?? bar.nominalWidth;
+                    const reduction = Math.min(overflow, currentWidth - 10);
+                    if (reduction > 0) {
+                        widths[bar.widget.id] = currentWidth - reduction;
+                        candidate = buildCandidate();
+                    }
+                }
+                for (const bar of bars) {
+                    if (getVisibleWidth(candidate.content) <= maxWidth)
+                        break;
+                    widths[bar.widget.id] = 0;
+                    candidate = buildCandidate();
+                }
+
+                return renderStatusLine(widgets, settings, fittedContext, candidate.preRendered, candidate.maxWidths);
+            }
+        }
+    }
+
     // If powerline mode is enabled, use powerline renderer
     if (isPowerlineMode)
         return renderPowerlineStatusLine(
@@ -1055,7 +1179,8 @@ export function renderStatusLine(
             context.globalSeparatorIndex ?? 0,
             context.globalPowerlineThemeIndex ?? 0,
             preRenderedWidgets,
-            preCalculatedMaxWidths
+            preCalculatedMaxWidths,
+            skipTruncation
         );
 
     // Helper to apply colors with optional background, bold, and dim
@@ -1233,11 +1358,23 @@ export function renderStatusLine(
                     if (hasForegroundOverride(settings)) {
                         finalOutput = stripSgrCodes(finalOutput);
                     }
+                    if (widget.type === 'context-bar') {
+                        const backgroundColor = settings.overrideBackgroundColor && settings.overrideBackgroundColor !== 'none'
+                            ? settings.overrideBackgroundColor
+                            : widgetBackgroundColor;
+                        finalOutput = restoreContextBarStylesAfterRail(
+                            finalOutput,
+                            colorLevel,
+                            backgroundColor,
+                            Boolean(settings.globalBold || widgetBold),
+                            widget.dim === true
+                        );
+                    }
                     // Preserve intrinsic foregrounds only when no global
                     // foreground override is active. Bold, dim, backgrounds,
                     // and global overrides still wrap the widget normally.
                     elements.push({
-                        content: applyColorsWithOverride(finalOutput, undefined, widget.backgroundColor, widget.bold, widget.dim),
+                        content: applyColorsWithOverride(finalOutput, undefined, widgetBackgroundColor, widgetBold, widget.dim),
                         type: widget.type,
                         widget
                     });
@@ -1435,7 +1572,7 @@ export function renderStatusLine(
     // Truncate if the line exceeds the terminal width
     // Use terminalWidth if available (already accounts for flex mode adjustments), otherwise use detectedWidth
     const maxWidth = terminalWidth ?? detectedWidth;
-    if (maxWidth && maxWidth > 0) {
+    if (!skipTruncation && maxWidth && maxWidth > 0) {
         // Remove ANSI escape codes to get actual length
         const plainLength = getVisibleWidth(statusLine);
 
