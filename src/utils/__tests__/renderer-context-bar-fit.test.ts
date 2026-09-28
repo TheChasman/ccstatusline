@@ -28,7 +28,7 @@ const widgets: WidgetItem[] = [
 ];
 const previousLocale = { LANG: process.env.LANG, LC_ALL: process.env.LC_ALL, LC_CTYPE: process.env.LC_CTYPE };
 
-function renderLine(terminalWidth: number, overrides: Partial<Settings> = {}): string {
+function renderConfigured(lineWidgets: WidgetItem[], terminalWidth: number, overrides: Partial<Settings> = {}): string {
     const settings: Settings = {
         ...DEFAULT_SETTINGS,
         flexMode: 'full',
@@ -49,15 +49,19 @@ function renderLine(terminalWidth: number, overrides: Partial<Settings> = {}): s
             }
         }
     };
-    const preRendered = preRenderAllWidgets([widgets], settings, context);
+    const preRendered = preRenderAllWidgets([lineWidgets], settings, context);
 
     return renderStatusLine(
-        widgets,
+        lineWidgets,
         settings,
         context,
         preRendered[0] ?? [],
         calculateMaxWidthsFromPreRendered(preRendered, settings)
     );
+}
+
+function renderLine(terminalWidth: number, overrides: Partial<Settings> = {}): string {
+    return renderConfigured(widgets, terminalWidth, overrides);
 }
 
 function railWidth(line: string): number {
@@ -131,6 +135,35 @@ describe('assembled Context Bar fitting', () => {
             expect(getVisibleText(line)).not.toContain('...');
             expect(getVisibleWidth(line)).toBeLessThanOrEqual(width);
         }
+    });
+
+    it('keeps trailing content when a fitted Powerline bar is auto-aligned', () => {
+        const lineWidgets = [...widgets, { id: 'end', type: 'custom-text', customText: ' END' }];
+        const basePowerline = { ...DEFAULT_SETTINGS.powerline, enabled: true };
+        const withoutAlignment = renderConfigured(lineWidgets, 55, { powerline: basePowerline });
+        const withAlignment = renderConfigured(lineWidgets, 55, { powerline: { ...basePowerline, autoAlign: true } });
+
+        expect(getVisibleText(withoutAlignment)).toContain(' END');
+        expect(getVisibleText(withAlignment)).toContain(' END');
+        expect(getVisibleText(withAlignment)).not.toContain('...');
+        expect(railWidth(withAlignment)).toBeGreaterThanOrEqual(10);
+        expect(railWidth(withAlignment)).toBeLessThan(25);
+        expect(getVisibleWidth(withAlignment)).toBeLessThanOrEqual(49);
+    });
+
+    it('shrinks two configured bars independently without widening the short one', () => {
+        const bars: WidgetItem[] = [
+            { id: 'wide', type: 'context-bar', metadata: { brailleWidth: '40' } },
+            { id: 'short', type: 'context-bar', metadata: { brailleWidth: '10' } }
+        ];
+        const line = renderConfigured(bars, 100);
+        const visible = getVisibleText(line);
+        const railWidths = [...visible.matchAll(/┃([^┃]+)┃/gu)].map(match => match[1]?.length);
+
+        expect(railWidths).toEqual([38, 10]);
+        expect(visible.match(/50k\/100k \(50%\)/g)).toHaveLength(2);
+        expect(visible).not.toContain('...');
+        expect(getVisibleWidth(line)).toBeLessThanOrEqual(94);
     });
 
     it('lets a global foreground override own the entire rail in regular and powerline output', () => {

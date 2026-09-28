@@ -1054,53 +1054,79 @@ export function renderStatusLine(
     const powerlineSettings = settings.powerline as Record<string, unknown> | undefined;
     const isPowerlineMode = Boolean(powerlineSettings?.enabled);
 
-    // Fit the rail against the assembled line, including neighbouring widgets,
-    // padding, separators, and Powerline caps. The internal width flag avoids
+    // Fit each rail against the assembled line, including neighbouring widgets,
+    // padding, separators, and Powerline caps. Internal width overrides avoid
     // measuring a fitted candidate recursively.
-    if (context.contextBarWidth === undefined && !skipTruncation) {
-        const bar = widgets.find(widget => widget.type === 'context-bar'
+    if (context.contextBarWidth === undefined && context.contextBarWidths === undefined && !skipTruncation) {
+        const bars = widgets.flatMap((widget, index) => widget.type === 'context-bar'
             && widget.metadata?.display !== 'slider'
-            && widget.metadata?.display !== 'slider-only');
+            && widget.metadata?.display !== 'slider-only'
+            && preRenderedWidgets[index]?.content
+            ? [{ widget, nominalWidth: resolveBrailleBarWidth(widget.metadata) }]
+            : []);
         const detectedWidth = context.terminalWidth ?? getTerminalWidth();
         const effectiveWidth = resolveEffectiveTerminalWidth(detectedWidth, settings, context);
         const maxWidth = isPowerlineMode ? effectiveWidth : effectiveWidth ?? detectedWidth;
 
-        if (bar && maxWidth && maxWidth > 0) {
-            const nominalWidth = resolveBrailleBarWidth(bar.metadata);
+        if (bars.length > 0 && maxWidth && maxWidth > 0) {
             const fullLine = renderStatusLine(
                 widgets,
                 settings,
-                { ...context, contextBarWidth: nominalWidth },
+                context,
                 preRenderedWidgets,
                 preCalculatedMaxWidths,
                 true
             );
-            const overflow = getVisibleWidth(fullLine) - maxWidth;
 
-            if (overflow > 0) {
-                const remainingWidth = nominalWidth - overflow;
-                const fittedWidth = remainingWidth >= 10 ? remainingWidth : 0;
-                const fittedContext = { ...context, contextBarWidth: fittedWidth };
-                const fittedWidgets = preRenderedWidgets.map((preRendered, index) => {
-                    const widget = widgets[index];
-                    if (widget?.type !== 'context-bar'
-                        || widget.metadata?.display === 'slider'
-                        || widget.metadata?.display === 'slider-only'
-                        || !preRendered.content)
-                        return preRendered;
+            if (getVisibleWidth(fullLine) > maxWidth) {
+                const widths: Record<string, number> = {};
+                const fittedContext = { ...context, contextBarWidths: widths };
+                const buildCandidate = (): { content: string; preRendered: PreRenderedWidget[]; maxWidths: number[] } => {
+                    const fittedWidgets = preRenderedWidgets.map((preRendered, index) => {
+                        const widget = widgets[index];
+                        if (widget?.type !== 'context-bar' || widths[widget.id] === undefined || !preRendered.content)
+                            return preRendered;
 
-                    const effectiveWidget = context.minimalist ? { ...widget, rawValue: true } : widget;
-                    const content = getWidget(widget.type)?.render(effectiveWidget, fittedContext, settings) ?? '';
-                    return { ...preRendered, content, plainLength: getVisibleWidth(content) };
-                });
+                        const effectiveWidget = context.minimalist ? { ...widget, rawValue: true } : widget;
+                        const content = getWidget(widget.type)?.render(effectiveWidget, fittedContext, settings) ?? '';
+                        return { ...preRendered, content, plainLength: getVisibleWidth(content) };
+                    });
+                    // A fitted Powerline line cannot retain cross-line padding
+                    // calculated from the original, wider rail.
+                    const maxWidths = isPowerlineMode && powerlineSettings?.autoAlign
+                        ? calculateMaxWidthsFromPreRendered([fittedWidgets], settings)
+                        : preCalculatedMaxWidths;
+                    const content = renderStatusLine(
+                        widgets,
+                        settings,
+                        fittedContext,
+                        fittedWidgets,
+                        maxWidths,
+                        true
+                    );
+                    return { content, preRendered: fittedWidgets, maxWidths };
+                };
 
-                return renderStatusLine(
-                    widgets,
-                    settings,
-                    fittedContext,
-                    fittedWidgets,
-                    preCalculatedMaxWidths
-                );
+                let candidate = buildCandidate();
+                for (const bar of bars) {
+                    const overflow = getVisibleWidth(candidate.content) - maxWidth;
+                    if (overflow <= 0)
+                        break;
+                    const currentWidth = widths[bar.widget.id] ?? bar.nominalWidth;
+                    const reduction = Math.min(overflow, currentWidth - 10);
+                    if (reduction > 0) {
+                        widths[bar.widget.id] = currentWidth - reduction;
+                        candidate = buildCandidate();
+                    }
+                }
+                for (const bar of bars) {
+                    if (getVisibleWidth(candidate.content) <= maxWidth)
+                        break;
+                    widths[bar.widget.id] = 0;
+                    candidate = buildCandidate();
+                }
+
+                return renderStatusLine(widgets, settings, fittedContext, candidate.preRendered, candidate.maxWidths);
             }
         }
     }

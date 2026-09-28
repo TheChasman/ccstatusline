@@ -151,7 +151,7 @@ export class ContextBarWidget implements Widget {
                 const sliderDisplay = displayMode === 'slider' ? `${slider} ${usedDisplay}/${totalDisplay} (${percentDisplay})` : slider;
                 return item.rawValue ? sliderDisplay : `Context: ${sliderDisplay}`;
             }
-            const barWidth = context.contextBarWidth ?? resolveBrailleBarWidth(item.metadata);
+            const barWidth = context.contextBarWidths?.[item.id] ?? context.contextBarWidth ?? resolveBrailleBarWidth(item.metadata);
             const rail = renderBrailleRail(50000, 200000, barWidth, item, settings);
             const previewDisplay = `${rail ? `${rail} ` : ''}${usedDisplay}/${totalDisplay} (${percentDisplay})`;
             return item.rawValue ? previewDisplay : `Ctxt: ${previewDisplay}`;
@@ -174,7 +174,7 @@ export class ContextBarWidget implements Widget {
         if (used === null || total === null || total <= 0) {
             if (isBarSliderMode(displayMode))
                 return null;
-            const barWidth = context.contextBarWidth ?? resolveBrailleBarWidth(item.metadata);
+            const barWidth = context.contextBarWidths?.[item.id] ?? context.contextBarWidth ?? resolveBrailleBarWidth(item.metadata);
             const rail = renderBrailleRail(0, 0, barWidth, item, settings);
             return item.rawValue ? rail : `Ctxt: ${rail}`;
         }
@@ -191,7 +191,7 @@ export class ContextBarWidget implements Widget {
             return item.rawValue ? sliderDisplay : `Context: ${sliderDisplay}`;
         }
 
-        const barWidth = context.contextBarWidth ?? resolveBrailleBarWidth(item.metadata);
+        const barWidth = context.contextBarWidths?.[item.id] ?? context.contextBarWidth ?? resolveBrailleBarWidth(item.metadata);
         const rail = renderBrailleRail(used, total, barWidth, item, settings);
         const display = `${rail ? `${rail} ` : ''}${usedDisplay}/${totalDisplay} (${percentDisplay})`;
 
