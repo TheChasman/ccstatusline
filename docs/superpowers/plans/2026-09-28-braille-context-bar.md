@@ -81,4 +81,3 @@
 - [ ] **Step 3: Run** `bun test src/widgets/__tests__/GitDeletions.test.ts`; expect 10/10 pass.
 - [ ] **Step 4: Run** `bun test`, `bun run lint`, and `bun run build`; expect all to pass. Run a piped status payload to check actual output width and colour reset.
 - [ ] **Step 5: Commit** as `test(git): match injectable runner options`.
-
