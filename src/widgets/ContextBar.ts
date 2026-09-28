@@ -43,7 +43,7 @@ function isBarSliderMode(mode: DisplayMode): boolean {
 
 function useAsciiRail(): boolean {
     const locale = [process.env.LC_ALL, process.env.LC_CTYPE, process.env.LANG].find(value => value && value.length > 0);
-    return Boolean(locale && !/utf-?8/i.test(locale));
+    return !locale || !/utf-?8/i.test(locale);
 }
 
 function resolveThresholds(metadata?: Record<string, string>): { warning: number; critical: number } {

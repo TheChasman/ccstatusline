@@ -121,6 +121,16 @@ describe('ContextBarWidget', () => {
         expect(result).toMatch(/\x1b\[0m 50k\/100k \(50%\)$/);
     });
 
+    it('uses ASCII fallback when locale variables are unset', () => {
+        delete process.env.LANG;
+        delete process.env.LC_ALL;
+        delete process.env.LC_CTYPE;
+
+        const result = widget.render(item, contextFor(50000), DEFAULT_SETTINGS) ?? '';
+
+        expect(getVisibleText(result)).toBe(`Ctxt: |${'#'.repeat(13)}${'-'.repeat(12)}| 50k/100k (50%)`);
+    });
+
     it('emits no ANSI codes when colours are disabled', () => {
         const result = widget.render(item, contextFor(50000), { ...DEFAULT_SETTINGS, colorLevel: 0 }) ?? '';
 

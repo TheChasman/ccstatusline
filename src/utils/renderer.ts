@@ -76,6 +76,19 @@ function preservesIntrinsicForeground(item: WidgetItem, settings: Settings): boo
     return widgetPreservesColors(item) && !hasForegroundOverride(settings);
 }
 
+// The bar resets its own foreground after the rail. Reapply the surrounding
+// widget styles so its numeric readout stays in the same segment as its label.
+function restoreContextBarStylesAfterRail(
+    content: string,
+    colorLevel: 'ansi16' | 'ansi256' | 'truecolor',
+    backgroundColor?: string,
+    bold?: boolean,
+    dim?: boolean
+): string {
+    const restored = `${bold ? '\x1b[1m' : ''}${dim ? '\x1b[2m' : ''}${getColorAnsiCode(backgroundColor, colorLevel, true)}`;
+    return restored ? content.replace('\x1b[0m', `\x1b[0m${restored}`) : content;
+}
+
 // Split the default padding string into the leading/trailing pieces that
 // actually get applied, based on which side(s) padding is configured for.
 function resolvePaddingSides(padding: string, side: DefaultPaddingSide | undefined): { leading: string; trailing: string } {
@@ -534,11 +547,8 @@ function renderPowerlineStatusLine(
         const styledContent = widget.widget.dim === 'parens'
             ? applyParensDim(widget.content, shouldBold)
             : widget.content;
-        const scopedContent = isPreserveColors && widget.widget.type === 'context-bar' && widget.bgColor
-            ? styledContent.replace(
-                '\x1b[0m',
-                `\x1b[0m${getColorAnsiCode(widget.bgColor, colorLevel, true)}`
-            )
+        const scopedContent = isPreserveColors && widget.widget.type === 'context-bar'
+            ? restoreContextBarStylesAfterRail(styledContent, colorLevel, widget.bgColor, shouldBold, shouldDim)
             : styledContent;
 
         if (widget.fgColor && !isPreserveColors && !textGradientStops) {
@@ -1348,11 +1358,23 @@ export function renderStatusLine(
                     if (hasForegroundOverride(settings)) {
                         finalOutput = stripSgrCodes(finalOutput);
                     }
+                    if (widget.type === 'context-bar') {
+                        const backgroundColor = settings.overrideBackgroundColor && settings.overrideBackgroundColor !== 'none'
+                            ? settings.overrideBackgroundColor
+                            : widgetBackgroundColor;
+                        finalOutput = restoreContextBarStylesAfterRail(
+                            finalOutput,
+                            colorLevel,
+                            backgroundColor,
+                            Boolean(settings.globalBold || widgetBold),
+                            widget.dim === true
+                        );
+                    }
                     // Preserve intrinsic foregrounds only when no global
                     // foreground override is active. Bold, dim, backgrounds,
                     // and global overrides still wrap the widget normally.
                     elements.push({
-                        content: applyColorsWithOverride(finalOutput, undefined, widget.backgroundColor, widget.bold, widget.dim),
+                        content: applyColorsWithOverride(finalOutput, undefined, widgetBackgroundColor, widgetBold, widget.dim),
                         type: widget.type,
                         widget
                     });

@@ -44,7 +44,7 @@ describe('makeBrailleContextBar', () => {
 
     it('uses only ASCII rail characters in fallback mode', () => {
         expect(makeBrailleContextBar(20, 100, 10, true)).toMatch(/^\|[#-]{10}\|$/);
-        expect(makeBrailleContextBar(20, 100, 10, true)).toMatch(/^\|[#-]{10}\|$/);
+        expect(makeBrailleContextBar(5, 100, 10, true)).toBe(`|#${'-'.repeat(9)}|`);
     });
 });
 

@@ -280,6 +280,24 @@ describe('assembled Context Bar fitting', () => {
         expect(afterRailReset).toMatch(/^\x1b\[48;5;\d+m 50k\/100k \(50%\)/);
     });
 
+    it('restores background, bold, and dim on the numeric readout in both renderers', () => {
+        const styledBar: WidgetItem = {
+            id: 'ctx',
+            type: 'context-bar',
+            backgroundColor: 'ansi256:26',
+            bold: true,
+            dim: true
+        };
+
+        for (const powerline of [false, true]) {
+            const line = renderConfigured([styledBar], 90, { powerline: { ...DEFAULT_SETTINGS.powerline, enabled: powerline } });
+            const afterRailReset = line.slice(line.indexOf('\x1b[0m') + 4);
+
+            expect(line).toContain('\x1b[0m');
+            expect(afterRailReset).toMatch(/^\x1b\[1m\x1b\[2m\x1b\[48;5;26m 50k\/100k \(50%\)/);
+        }
+    });
+
     it('keeps unrelated long widgets subject to ordinary truncation', () => {
         const line = renderLine(18);
         expect(getVisibleWidth(line)).toBe(12);
