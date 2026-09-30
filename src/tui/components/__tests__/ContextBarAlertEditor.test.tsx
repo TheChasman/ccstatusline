@@ -103,4 +103,19 @@ describe('Context Bar alert editor', () => {
             closeEditor(editor);
         }
     });
+
+    it('rejects a 100 percent warning before advancing to critical', async () => {
+        const editor = openEditor({ id: 'ctx', type: 'context-bar' });
+        try {
+            await flushInk();
+            await typeInput(editor.stdin, '100');
+            editor.stdin.push('\r');
+            await flushInk();
+            expect(editor.stdout.getOutput()).toContain('Warning must be below 100%');
+            expect(editor.stdout.getOutput()).toContain('Warning (amber) percentage:');
+            expect(editor.onComplete).not.toHaveBeenCalled();
+        } finally {
+            closeEditor(editor);
+        }
+    });
 });

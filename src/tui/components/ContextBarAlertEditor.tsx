@@ -44,6 +44,10 @@ export const ContextBarAlertEditor: React.FC<WidgetEditorProps> = ({ widget, onC
                 return;
             }
             if (step === 'warning') {
+                if (parsed >= 100) {
+                    setError('Warning must be below 100%');
+                    return;
+                }
                 setStep('critical');
                 setError(null);
                 return;
