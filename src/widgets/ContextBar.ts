@@ -1,3 +1,4 @@
+import { renderContextBarAlertEditor } from '../tui/components/ContextBarAlertEditor';
 import { getColorLevelString } from '../types/ColorLevel';
 import type { RenderContext } from '../types/RenderContext';
 import type { Settings } from '../types/Settings';
@@ -6,10 +7,12 @@ import type {
     DynamicColors,
     Widget,
     WidgetEditorDisplay,
+    WidgetEditorProps,
     WidgetItem
 } from '../types/Widget';
 import {
     makeBrailleContextBar,
+    resolveBrailleAlertLevels,
     resolveBrailleBarWidth
 } from '../utils/braille-context-bar';
 import { getColorAnsiCode } from '../utils/colors';
@@ -46,18 +49,6 @@ function useAsciiRail(): boolean {
     return !locale || !/utf-?8/i.test(locale);
 }
 
-function resolveThresholds(metadata?: Record<string, string>): { warning: number; critical: number } {
-    const parse = (value: string | undefined, fallback: number): number => {
-        if (value === undefined || !/^\s*\d+(?:\.\d+)?\s*$/.test(value))
-            return fallback;
-        const number = Number(value);
-        return Number.isFinite(number) && number >= 0 && number <= 100 ? number : fallback;
-    };
-    const warning = parse(metadata?.brailleWarningAt, 50);
-    const critical = parse(metadata?.brailleCriticalAt, 75);
-    return warning < critical ? { warning, critical } : { warning: 50, critical: 75 };
-}
-
 function renderBrailleRail(
     used: number,
     total: number,
@@ -79,7 +70,7 @@ function renderBrailleRail(
     const filledEnd = firstTrack === -1 ? cells.length : firstTrack;
     const fill = cells.slice(0, filledEnd);
     const empty = cells.slice(filledEnd);
-    const { warning, critical } = resolveThresholds(item.metadata);
+    const { warning, critical } = resolveBrailleAlertLevels(item.metadata);
     // Resolve halfway cases towards the lower cell (50% of 25 cells = 12.5).
     const nearestCell = (percent: number) => Math.ceil(cells.length * percent / 100 - 0.5);
     const warningCell = nearestCell(warning);
@@ -224,8 +215,13 @@ export class ContextBarWidget implements Widget {
 
     getCustomKeybinds(): CustomKeybind[] {
         return [
-            { key: 'p', label: '(p)rogress toggle', action: 'toggle-progress' }
+            { key: 'p', label: '(p)rogress toggle', action: 'toggle-progress' },
+            { key: 'l', label: 'alert (l)evels', action: 'edit-alert-levels' }
         ];
+    }
+
+    renderEditor(props: WidgetEditorProps) {
+        return props.action === 'edit-alert-levels' ? renderContextBarAlertEditor(props) : null;
     }
 
     getDynamicColors(

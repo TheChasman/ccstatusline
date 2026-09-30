@@ -38,7 +38,7 @@
 **Files:** `src/widgets/ContextBar.ts`, `src/tui/components/ContextBarAlertEditor.tsx`, tests under `src/tui/components/__tests__/`, `docs/USAGE.md`.
 
 - [ ] Add a widget keybind such as `(l)evels` that opens a dedicated alert editor through `renderEditor`. Test the keybind and editor with real Ink input.
-- [ ] Show the stored/default warning and critical percentages. Accept whole percentages 0–100 with warning < critical, preserve unrelated metadata, and call `onComplete` only for a valid confirmed edit. Cancel calls `onCancel` without changes.
+- [ ] Show the stored/default warning and critical percentages. Accept percentages 0–100, including decimals, with warning < critical; preserve unrelated metadata, and call `onComplete` only for a valid confirmed edit. Cancel calls `onCancel` without changes.
 - [ ] Document the TUI path. Run targeted tests, then `bun test` and `bun run lint`; review the diff and commit the second task.
 
 ### Final review

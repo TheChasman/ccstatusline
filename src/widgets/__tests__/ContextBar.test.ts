@@ -211,4 +211,12 @@ describe('ContextBarWidget', () => {
         expect(getVisibleText(widget.render({ ...item, numberFormat: { decimals: 2 } }, { isPreview: true }, DEFAULT_SETTINGS) ?? ''))
             .toMatch(/^Ctxt: ┃.{25}┃ 50\.00k\/200\.00k \(25\.00%\)$/u);
     });
+
+    it('offers an alert-level editor from the Context Bar keybinds', () => {
+        expect(widget.getCustomKeybinds()).toContainEqual({
+            key: 'l',
+            label: 'alert (l)evels',
+            action: 'edit-alert-levels'
+        });
+    });
 });

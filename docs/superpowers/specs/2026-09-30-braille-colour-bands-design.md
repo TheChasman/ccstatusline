@@ -14,7 +14,7 @@ The Context Bar should retain earlier colours as usage rises: green fill, then a
 
 ## TUI setting
 
-After the colour-band change is tested and committed, add an **Alert levels** editor to the Context Bar widget in the Items Editor. The editor shows the warning and critical percentages as stored, lets the user set each to a whole percentage from 0 to 100, and requires warning < critical. Escape cancels without saving; confirmation persists the widget metadata through the existing Items Editor update path. The editor does not change colours or display rounding.
+After the colour-band change is tested and committed, add an **Alert levels** editor to the Context Bar widget in the Items Editor. The editor shows the warning and critical percentages as stored, lets the user set each to a percentage from 0 to 100 (including decimals), and requires warning < critical. Escape cancels without saving; confirmation persists the widget metadata through the existing Items Editor update path. The editor does not change colours or display rounding.
 
 ## Verification
 

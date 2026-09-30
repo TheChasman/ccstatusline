@@ -1,6 +1,18 @@
 const BRAILLE_RAMP = ['⠀', '⡀', '⡄', '⡆', '⡇', '⣇', '⣧', '⣷', '⣿'];
 const DEFAULT_WIDTH = 25;
 
+export function resolveBrailleAlertLevels(metadata?: Record<string, string>): { warning: number; critical: number } {
+    const parse = (value: string | undefined, fallback: number): number => {
+        if (value === undefined || !/^\s*\d+(?:\.\d+)?\s*$/.test(value))
+            return fallback;
+        const number = Number(value);
+        return Number.isFinite(number) && number >= 0 && number <= 100 ? number : fallback;
+    };
+    const warning = parse(metadata?.brailleWarningAt, 50);
+    const critical = parse(metadata?.brailleCriticalAt, 75);
+    return warning < critical ? { warning, critical } : { warning: 50, critical: 75 };
+}
+
 export function makeBrailleContextBar(used: number, limit: number, width: number, ascii = false): string {
     const cellWidth = Number.isFinite(width) ? Math.max(1, Math.trunc(width)) : DEFAULT_WIDTH;
     const rail = ascii ? '-' : '⣀';
