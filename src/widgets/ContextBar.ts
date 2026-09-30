@@ -80,17 +80,30 @@ function renderBrailleRail(
     const fill = cells.slice(0, filledEnd);
     const empty = cells.slice(filledEnd);
     const { warning, critical } = resolveThresholds(item.metadata);
-    const percentage = total > 0 ? (used / total) * 100 : 0;
-    const level = percentage >= critical ? 'high' : percentage >= warning ? 'medium' : 'low';
-    const defaultColor = level === 'high' ? 'red' : level === 'medium' ? 'orange' : 'green';
-    const configuredColor = item.metadata?.[`braille${level[0]?.toUpperCase()}${level.slice(1)}Color`];
+    // Resolve halfway cases towards the lower cell (50% of 25 cells = 12.5).
+    const nearestCell = (percent: number) => Math.ceil(cells.length * percent / 100 - 0.5);
+    const warningCell = nearestCell(warning);
+    const criticalCell = nearestCell(critical);
     const colorLevel = getColorLevelString(settings.colorLevel);
-    const defaultCode = getColorAnsiCode(getTrafficLightColor(defaultColor, settings.colorLevel), colorLevel);
-    const fillCode = getColorAnsiCode(configuredColor, colorLevel) || defaultCode;
+    const colouredFill = (
+        text: string,
+        level: 'Low' | 'Medium' | 'High',
+        defaultColor: 'green' | 'orange' | 'red'
+    ): string => {
+        if (!text)
+            return '';
+        const configuredColor = item.metadata?.[`braille${level}Color`];
+        const defaultCode = getColorAnsiCode(getTrafficLightColor(defaultColor, settings.colorLevel), colorLevel);
+        const code = getColorAnsiCode(configuredColor, colorLevel) || defaultCode;
+        return `${code}${text}`;
+    };
+    const green = colouredFill(fill.slice(0, warningCell), 'Low', 'green');
+    const amber = colouredFill(fill.slice(warningCell, criticalCell), 'Medium', 'orange');
+    const red = colouredFill(fill.slice(criticalCell), 'High', 'red');
     const delimiterCode = getColorAnsiCode('ansi256:244', colorLevel);
     const trackCode = getColorAnsiCode('ansi256:238', colorLevel);
 
-    return `${delimiterCode}${rawBar[0]}${fill ? `${fillCode}${fill}` : ''}${empty ? `${trackCode}${empty}` : ''}${delimiterCode}${rawBar[rawBar.length - 1]}\x1b[0m`;
+    return `${delimiterCode}${rawBar[0]}${green}${amber}${red}${empty ? `${trackCode}${empty}` : ''}${delimiterCode}${rawBar[rawBar.length - 1]}\x1b[0m`;
 }
 
 export class ContextBarWidget implements Widget {

@@ -61,17 +61,30 @@ describe('ContextBarWidget', () => {
         expect(result).toMatch(/\x1b\[0m 15k\/100k \(15%\)$/);
     });
 
-    it.each([
-        [49, '\x1b[38;5;34m'],
-        [50, '\x1b[38;5;214m'],
-        [75, '\x1b[38;5;196m']
-    ])('uses threshold fill colour at %i percent without colouring the label or readout', (percent, colour) => {
-        const result = widget.render(item, contextFor(percent * 1000), DEFAULT_SETTINGS) ?? '';
+    it('keeps green, amber, and red fill adjacent at 80 percent', () => {
+        const result = widget.render(item, contextFor(80000), DEFAULT_SETTINGS) ?? '';
 
-        expect(result.startsWith('Ctxt: \x1b[38;5;244m')).toBe(true);
-        expect(result).toContain(`${colour}⣿`);
-        expect(result).toMatch(/\x1b\[0m \d+k\/100k \(\d+%\)$/);
-        expect(widget.getDynamicColors(item, contextFor(percent * 1000), DEFAULT_SETTINGS)).toBeNull();
+        expect(result).toBe(`Ctxt: \x1b[38;5;244m┃\x1b[38;5;34m${'⣿'.repeat(12)}\x1b[38;5;214m${'⣿'.repeat(7)}\x1b[38;5;196m⣿\x1b[38;5;238m${'⣀'.repeat(5)}\x1b[38;5;244m┃\x1b[0m 80k/100k (80%)`);
+        expect(widget.getDynamicColors(item, contextFor(80000), DEFAULT_SETTINGS)).toBeNull();
+    });
+
+    it('colours a partial cell from the band at its displayed position', () => {
+        const result = widget.render(item, contextFor(51000), DEFAULT_SETTINGS) ?? '';
+
+        expect(result).toContain(`\x1b[38;5;34m${'⣿'.repeat(12)}\x1b[38;5;214m⣧`);
+    });
+
+    it('uses the actual rail width when placing colour boundaries', () => {
+        const narrow = { ...item, metadata: { brailleWidth: '10' } };
+        const result = widget.render(narrow, contextFor(90000), DEFAULT_SETTINGS) ?? '';
+
+        expect(result).toContain(`\x1b[38;5;34m${'⣿'.repeat(5)}\x1b[38;5;214m${'⣿'.repeat(2)}\x1b[38;5;196m${'⣿'.repeat(2)}`);
+    });
+
+    it('retains all three bands when the rail is full', () => {
+        const result = widget.render(item, contextFor(100000), DEFAULT_SETTINGS) ?? '';
+
+        expect(result).toContain(`\x1b[38;5;34m${'⣿'.repeat(12)}\x1b[38;5;214m${'⣿'.repeat(7)}\x1b[38;5;196m${'⣿'.repeat(6)}\x1b[38;5;244m┃`);
     });
 
     it('uses configured width, thresholds, and fill colour', () => {
@@ -87,7 +100,7 @@ describe('ContextBarWidget', () => {
         const result = widget.render(configured, contextFor(35000), DEFAULT_SETTINGS) ?? '';
 
         expect(getVisibleText(result)).toBe(`Ctxt: ┃${'⣿'.repeat(4)}⡀${'⣀'.repeat(7)}┃ 35k/100k (35%)`);
-        expect(result).toContain('\x1b[38;5;23m⣿');
+        expect(result).toContain(`\x1b[38;5;34m${'⣿'.repeat(4)}\x1b[38;5;23m⡀`);
     });
 
     it('uses defaults when metadata is invalid', () => {
@@ -102,7 +115,7 @@ describe('ContextBarWidget', () => {
         }, contextFor(50000), DEFAULT_SETTINGS) ?? '';
 
         expect(getVisibleText(result)).toContain(`┃${'⣿'.repeat(12)}⡇${'⣀'.repeat(12)}┃`);
-        expect(result).toContain('\x1b[38;5;214m⣿');
+        expect(result).toContain(`\x1b[38;5;34m${'⣿'.repeat(12)}\x1b[38;5;214m⡇`);
     });
 
     it('shows an empty rail and no numeric text when counts are missing', () => {
@@ -119,6 +132,7 @@ describe('ContextBarWidget', () => {
 
         expect(getVisibleText(result)).toBe(`Ctxt: |${'#'.repeat(13)}${'-'.repeat(12)}| 50k/100k (50%)`);
         expect(result).toMatch(/\x1b\[0m 50k\/100k \(50%\)$/);
+        expect(result).toContain(`\x1b[38;5;34m${'#'.repeat(12)}\x1b[38;5;214m#`);
     });
 
     it('uses ASCII fallback when locale variables are unset', () => {
