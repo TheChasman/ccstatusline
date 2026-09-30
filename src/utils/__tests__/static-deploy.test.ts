@@ -106,6 +106,30 @@ describe('writeStaticFiles', () => {
         expect(readFileSync(target, 'utf-8')).toContain('console.log("hi")');
     });
 
+    it('copies generated chunks before replacing the entry file', async () => {
+        const chunk = path.join(path.dirname(srcBundle), 'ccstatusline-newhash.js');
+        writeFileSync(chunk, 'export const version = 2;\n');
+        writeFileSync(srcBundle, 'import "./ccstatusline-newhash.js";\n');
+
+        await writeStaticFiles(srcBundle, home);
+
+        const target = path.join(home, '.config', 'ccstatusline');
+        expect(readFileSync(path.join(target, 'ccstatusline-newhash.js'), 'utf-8')).toBe('export const version = 2;\n');
+        expect(readFileSync(path.join(target, 'ccstatusline.js'), 'utf-8')).toContain('ccstatusline-newhash.js');
+    });
+
+    it('keeps the installed entry when a chunk copy fails', async () => {
+        await writeStaticFiles(srcBundle, home);
+        const target = path.join(home, '.config', 'ccstatusline', 'ccstatusline.js');
+        const original = readFileSync(target, 'utf-8');
+        writeFileSync(srcBundle, 'import "./bad.js";\n');
+        mkdirSync(path.join(path.dirname(srcBundle), 'bad.js'));
+
+        await expect(writeStaticFiles(srcBundle, home)).rejects.toThrow();
+
+        expect(readFileSync(target, 'utf-8')).toBe(original);
+    });
+
     it('chmods the copy to 0o755', async () => {
         await writeStaticFiles(srcBundle, home);
         const target = path.join(home, '.config', 'ccstatusline', 'ccstatusline.js');
