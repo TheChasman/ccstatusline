@@ -40,24 +40,33 @@ export function isSourceMode(cwd: string = process.cwd()): boolean {
 
 export async function writeStaticFiles(sourceBundle: string, homeDir: string = os.homedir()): Promise<void> {
     const paths = resolvePaths(homeDir);
+    const sourceDir = path.dirname(sourceBundle);
+    const entryName = path.basename(sourceBundle);
+    const scripts = (await fsp.readdir(sourceDir))
+        .filter(name => name.endsWith('.js') && name !== entryName)
+        .sort();
+    scripts.push(entryName);
     await fsp.mkdir(paths.staticDir, { recursive: true });
 
-    // Atomic write: copy to temp, chmod temp, then rename temp to final path.
-    // This ensures the previous file is never touched until a new one is successfully
-    // written and ready to replace it.
-    const tmpPath = `${paths.staticJs}.tmp-${process.pid}-${Date.now()}`;
-    try {
-        await fsp.copyFile(sourceBundle, tmpPath);
-        await fsp.chmod(tmpPath, 0o755);
-        await fsp.rename(tmpPath, paths.staticJs);
-    } catch (err) {
-        // Clean up temp file on failure; ignore cleanup errors.
+    // Install chunks first so the new entry never points to missing files.
+    // Each replacement is atomic; old chunks remain available to running processes.
+    for (const name of scripts) {
+        const target = path.join(paths.staticDir, name);
+        const tmpPath = `${target}.tmp-${process.pid}-${Date.now()}`;
         try {
-            await fsp.unlink(tmpPath);
-        } catch {
-            // swallow
+            await fsp.copyFile(path.join(sourceDir, name), tmpPath);
+            if (name === entryName) {
+                await fsp.chmod(tmpPath, 0o755);
+            }
+            await fsp.rename(tmpPath, target);
+        } catch (err) {
+            try {
+                await fsp.unlink(tmpPath);
+            } catch {
+                // The temp file may not have been created.
+            }
+            throw err;
         }
-        throw err;
     }
 
     if (!fs.existsSync(paths.staticPkg)) {
