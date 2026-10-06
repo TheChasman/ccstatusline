@@ -77,6 +77,69 @@ describe('ModelWidget', () => {
     });
 
     describe('getDynamicColors', () => {
+        it.each([
+            ['gpt-6.1-sol', 'GPT-6.1 Sol', 'ansi256:34'],
+            ['gpt-6-sol', 'GPT-6 Sol', 'ansi256:34'],
+            ['gpt-5.6-terra', 'GPT-5.6 Terra', 'ansi256:34'],
+            ['claude-sonnet-5', 'Sonnet 5', 'ansi256:34'],
+            ['claude-opus-5-5', 'Opus 5.5', 'ansi256:214'],
+            ['kimi-k3', 'Kimi K3 (Droid Core)', 'ansi256:214'],
+            ['gpt-5.4', 'GPT-5.4', 'ansi256:214'],
+            ['claude-opus-5', 'Opus 5', 'ansi256:196'],
+            ['claude-opus-5-5-fast', 'Opus 5.5 Fast', 'ansi256:196'],
+            ['gpt-6-astra', 'GPT-6 Astra', 'ansi256:196'],
+            ['gemini-3.1-pro-preview', 'Gemini 3.1 Pro', 'ansi256:34'],
+            ['grok-4.7', 'Grok 4.7', 'ansi256:34']
+        ])('colours %s by multiplier rather than its display name', (id, displayName, color) => {
+            const context: RenderContext = { data: { model: { id, display_name: displayName } } };
+            const item: WidgetItem = { id: '1', type: 'model' };
+            const settings = { ...DEFAULT_SETTINGS, colorLevel: 2 as const };
+
+            expect(widget.getDynamicColors(item, context, settings)).toEqual({ color });
+        });
+
+        it('uses the multiplier when only the model id is available', () => {
+            const context: RenderContext = { data: { model: { id: 'GPT-6.1-SOL[1m]' } } };
+            const settings = { ...DEFAULT_SETTINGS, colorLevel: 3 as const };
+
+            expect(widget.getDynamicColors({ id: '1', type: 'model' }, context, settings))
+                .toEqual({ color: 'hex:00AF00' });
+        });
+
+        it('uses the multiplier for a model id supplied as a string', () => {
+            const context: RenderContext = { data: { model: 'gpt-6.1-sol' } };
+            const settings = { ...DEFAULT_SETTINGS, colorLevel: 2 as const };
+
+            expect(widget.getDynamicColors({ id: '1', type: 'model' }, context, settings))
+                .toEqual({ color: 'ansi256:34' });
+        });
+
+        it('uses multiplier colours as the Powerline background', () => {
+            const context: RenderContext = { data: { model: { id: 'gpt-6.1-sol', display_name: 'GPT-6.1 Sol' } } };
+            const settings = {
+                ...DEFAULT_SETTINGS,
+                colorLevel: 2 as const,
+                powerline: { ...DEFAULT_SETTINGS.powerline, enabled: true }
+            };
+
+            expect(widget.getDynamicColors({ id: '1', type: 'model' }, context, settings))
+                .toEqual({ backgroundColor: 'ansi256:34', color: 'black' });
+        });
+
+        it('keeps the name rule when an id has no published multiplier', () => {
+            const context: RenderContext = { data: { model: { id: 'custom-sol', display_name: 'Custom Sol' } } };
+            const settings = { ...DEFAULT_SETTINGS, colorLevel: 2 as const };
+
+            expect(widget.getDynamicColors({ id: '1', type: 'model' }, context, settings))
+                .toEqual({ color: 'ansi256:196' });
+        });
+
+        it('does not guess a multiplier for Auto Model', () => {
+            const context: RenderContext = { data: { model: { id: 'auto', display_name: 'Auto Model' } } };
+
+            expect(widget.getDynamicColors({ id: '1', type: 'model' }, context, DEFAULT_SETTINGS)).toBeNull();
+        });
+
         it('returns green for haiku models', () => {
             const context: RenderContext = { data: { model: 'Claude 3.5 Haiku' } };
             const item: WidgetItem = { id: '1', type: 'model' };
