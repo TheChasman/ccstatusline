@@ -6,11 +6,15 @@ import type {
     WidgetEditorDisplay,
     WidgetItem
 } from '../types/Widget';
+import {
+    getModelMultiplier,
+    getMultiplierTrafficLight
+} from '../utils/model-multipliers';
 import { getTrafficLightColor } from '../utils/traffic-light';
 
 export class ModelWidget implements Widget {
     getDefaultColor(): string { return 'cyan'; }
-    getDescription(): string { return 'Displays the Claude model name (e.g., Claude 3.5 Sonnet)'; }
+    getDescription(): string { return 'Displays the model name, coloured by published cost multiplier when known'; }
     getDisplayName(): string { return 'Model'; }
     getCategory(): string { return 'Core'; }
     getEditorDisplay(item: WidgetItem): WidgetEditorDisplay {
@@ -49,9 +53,13 @@ export class ModelWidget implements Widget {
         }
 
         const lowerName = modelDisplayName.toLowerCase();
+        const modelId = typeof model === 'string' ? model : model?.id;
+        const multiplier = modelId ? getModelMultiplier(modelId) : null;
         let trafficLightLevel: 'green' | 'orange' | 'red';
 
-        if (lowerName.includes('haiku') || lowerName.includes('luna')) {
+        if (multiplier !== null) {
+            trafficLightLevel = getMultiplierTrafficLight(multiplier);
+        } else if (lowerName.includes('haiku') || lowerName.includes('luna')) {
             trafficLightLevel = 'green';
         } else if (lowerName.includes('sonnet') || lowerName.includes('terra')) {
             trafficLightLevel = 'orange';

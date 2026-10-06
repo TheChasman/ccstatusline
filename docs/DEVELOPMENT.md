@@ -74,6 +74,7 @@ Usage-lock deadlines more than 24 hours ahead are treated as poisoned and ignore
 
 ## Widget Data Sources
 
+- **Model colours** use the hand-maintained Factory cost-multiplier table in `src/utils/model-multipliers.ts`: below 1× is green, 1× to below 2× is amber, and 2× or more is red. This applies to matching model IDs in any harness; unknown IDs keep the existing name-based colours. Refresh the table from [Factory's model list](https://docs.factory.com/models.md) when prices or models change. Listed promotions expire after their final calendar day, using UTC.
 - **Transcript-backed widgets** stream the active JSONL transcript once per render through `getTranscriptAnalysis()`, collecting token, duration, speed, compaction, thinking-effort, and session-name data in one pass without materializing the whole file. Referenced subagent transcripts are streamed separately only when speed metrics include subagents.
 - **Block Timer** caches a detected block until its five-hour window expires. When a full scan finds no active block, that empty result is cached for one minute so subsequent repaints do not repeatedly walk and read the entire transcript history.
 - **Cache Timer** reads the transcript tail directly on every render. It expands the read backward when a trailing JSONL record exceeds the initial window, ignores sidechain and synthetic API-error rows, and anchors the countdown only on assistant requests with cache activity. It does not create a separate cache file.
