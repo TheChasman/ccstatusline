@@ -131,9 +131,16 @@ export class ThinkingEffortWidget implements Widget {
 
         if (effortLevel === 'max') {
             return {
-                backgroundColor: getTrafficLightColor('red', settings.colorLevel),
-                color: 'white',
+                backgroundColor: 'bgWhite',
+                color: getTrafficLightColor('red', settings.colorLevel),
                 bold: true
+            };
+        }
+
+        if (effortLevel === 'xhigh') {
+            return {
+                backgroundColor: getTrafficLightColor('red', settings.colorLevel),
+                color: 'white'
             };
         }
 
@@ -149,9 +156,8 @@ export class ThinkingEffortWidget implements Widget {
 
         const trafficMap: Readonly<Record<string, TrafficLightColor | undefined>> = {
             low: 'green',
-            medium: 'yellow',
-            high: 'orange',
-            xhigh: 'red'
+            medium: 'orange',
+            high: 'red'
         };
 
         const mappedColor = trafficMap[effortLevel];
