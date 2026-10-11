@@ -22,11 +22,14 @@ export type ThinkingEffortLevel = TranscriptThinkingEffort;
 
 function resolveThinkingEffortFromStatusJson(context: RenderContext): ResolvedThinkingEffort | null | undefined {
     const effort = context.data?.effort;
-    if (!effort || !('level' in effort)) {
-        return undefined;
+    if (effort && 'level' in effort) {
+        return typeof effort.level === 'string' ? normalizeThinkingEffort(effort.level) : null;
     }
 
-    return typeof effort.level === 'string' ? normalizeThinkingEffort(effort.level) : null;
+    const model = context.data?.model;
+    return model && typeof model !== 'string'
+        ? normalizeThinkingEffort(model.reasoning_effort)
+        : undefined;
 }
 
 function resolveThinkingEffortFromSettings(): ResolvedThinkingEffort | undefined {
