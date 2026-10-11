@@ -30,7 +30,8 @@ export const StatusJSONSchema = z.looseObject({
         z.string(),
         z.object({
             id: z.string().optional(),
-            display_name: z.string().optional()
+            display_name: z.string().optional(),
+            reasoning_effort: z.string().optional()
         })
     ]).optional(),
     workspace: z.object({

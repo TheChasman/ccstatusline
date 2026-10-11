@@ -18,6 +18,7 @@ import type {
     WidgetItem
 } from '../../types';
 import { DEFAULT_SETTINGS } from '../../types/Settings';
+import { StatusJSONSchema } from '../../types/StatusJSON';
 import { loadClaudeSettingsSync } from '../../utils/claude-settings';
 import {
     applyColors,
@@ -146,6 +147,27 @@ describe('ThinkingEffortWidget', () => {
     });
 
     describe('status JSON source', () => {
+        it('reads Droid model reasoning effort instead of Claude settings', () => {
+            const statusData = StatusJSONSchema.parse({
+                model: {
+                    id: 'claude-opus-5-5',
+                    display_name: 'Opus 5.5',
+                    reasoning_effort: 'medium'
+                }
+            });
+            const result = render({
+                statusData,
+                settingsValue: { effortLevel: 'high' }
+            });
+
+            expect(result).toBe('Eff: M');
+            expect(new ThinkingEffortWidget().getDynamicColors(
+                { id: 'thinking-effort', type: 'thinking-effort' },
+                { data: statusData },
+                DEFAULT_SETTINGS
+            )).toEqual({ color: 'ansi256:214' });
+        });
+
         it('reads max effort from status JSON', () => {
             const result = render({ statusData: { effort: { level: 'max' } } });
             expect(result).toBe('Eff: MAX');
